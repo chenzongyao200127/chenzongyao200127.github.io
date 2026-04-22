@@ -15,18 +15,16 @@
 
 ---
 
-## 摘要
-
-MapReduce 是一种用于处理和生成大规模数据集的编程模型（programming model）及其关联实现。">
+> 底层命题： 如何让完全不懂分布式系统、容错、网络调度的业务工程师，也能在成千上万台机器上编写并处理海量数据？
+> 学习价值（抽象的威力）：将一切复杂的分布式计算抽象为 `Map` 和 `Reduce` 两个接口。">
 <meta property="og:title" content="MapReduce 大规模数据集上的简化数据处理">
 <meta property="og:description" content="**Jeffrey Dean, Sanjay Ghemawat**
 *Google, Inc.*
 
 ---
 
-## 摘要
-
-MapReduce 是一种用于处理和生成大规模数据集的编程模型（programming model）及其关联实现。">
+> 底层命题： 如何让完全不懂分布式系统、容错、网络调度的业务工程师，也能在成千上万台机器上编写并处理海量数据？
+> 学习价值（抽象的威力）：将一切复杂的分布式计算抽象为 `Map` 和 `Reduce` 两个接口。">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://chenzongyao200127.github.io/post/MapReduce%20-da-gui-mo-shu-ju-ji-shang-de-jian-hua-shu-ju-chu-li.html">
 <meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
@@ -100,6 +98,10 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 <div class="markdown-body" id="postBody"><p><strong>Jeffrey Dean, Sanjay Ghemawat</strong><br>
 <em>Google, Inc.</em></p>
 <hr>
+<blockquote>
+<p>底层命题： 如何让完全不懂分布式系统、容错、网络调度的业务工程师，也能在成千上万台机器上编写并处理海量数据？<br>
+学习价值（抽象的威力）：将一切复杂的分布式计算抽象为 <code class="notranslate">Map</code> 和 <code class="notranslate">Reduce</code> 两个接口。尽管如今它的实现已被 Spark/Flink 取代，但它在“如何划定系统框架与用户逻辑的边界”、“如何通过设计彻底屏蔽底层硬件故障”上的第一性原理思考，至今无法被超越。</p>
+</blockquote>
 <h2>摘要</h2>
 <p>MapReduce 是一种用于处理和生成大规模数据集的编程模型（programming model）及其关联实现。用户指定一个 map 函数（映射函数）来处理一组 key/value pair（键/值对），以生成一组 intermediate key/value pairs（中间键/值对）；并指定一个 reduce 函数（归约函数），将所有与同一 intermediate key（中间键）相关联的 intermediate values（中间值）进行合并。如本文所示，现实世界中的许多任务都可以用这一模型来表达。以这种函数式风格编写的程序可以自动并行化，并在大规模 commodity machines（普通商用机器）集群上执行。运行时系统（run-time system）负责处理以下细节：对输入数据进行 partitioning（分区）、在一组机器上 scheduling（调度）程序的执行、处理 machine failures（机器故障），以及管理所需的 inter-machine communication（机器间通信）。这使得没有任何并行和分布式系统经验的程序员也能轻松利用大规模分布式系统的资源。我们的 MapReduce 实现运行在大规模普通商用机器集群上，具有高度的可扩展性（scalability）：一个典型的 MapReduce 计算可以在数千台机器上处理数 TB（terabytes）的数据。程序员发现这个系统非常易于使用：已有数百个 MapReduce 程序被实现，每天在 Google 的集群上执行超过一千个 MapReduce 作业。</p>
 <hr>

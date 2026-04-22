@@ -1,12 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Solar1s' Personal Blog</title><link>https://chenzongyao200127.github.io</link><description>Life is not a rat race</description><copyright>Solar1s' Personal Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://chenzongyao200127.github.io</link></image><lastBuildDate>Wed, 22 Apr 2026 12:56:44 +0000</lastBuildDate><managingEditor>Solar1s' Personal Blog</managingEditor><ttl>60</ttl><webMaster>Solar1s' Personal Blog</webMaster><item><title>MapReduce 大规模数据集上的简化数据处理</title><link>https://chenzongyao200127.github.io/post/MapReduce%20-da-gui-mo-shu-ju-ji-shang-de-jian-hua-shu-ju-chu-li.html</link><description>**Jeffrey Dean, Sanjay Ghemawat**
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Solar1s' Personal Blog</title><link>https://chenzongyao200127.github.io</link><description>Life is not a rat race</description><copyright>Solar1s' Personal Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://chenzongyao200127.github.io</link></image><lastBuildDate>Wed, 22 Apr 2026 13:39:03 +0000</lastBuildDate><managingEditor>Solar1s' Personal Blog</managingEditor><ttl>60</ttl><webMaster>Solar1s' Personal Blog</webMaster><item><title>MapReduce 大规模数据集上的简化数据处理</title><link>https://chenzongyao200127.github.io/post/MapReduce%20-da-gui-mo-shu-ju-ji-shang-de-jian-hua-shu-ju-chu-li.html</link><description>**Jeffrey Dean, Sanjay Ghemawat**
 *Google, Inc.*
 
 ---
 
-## 摘要
-
-MapReduce 是一种用于处理和生成大规模数据集的编程模型（programming model）及其关联实现。</description><guid isPermaLink="true">https://chenzongyao200127.github.io/post/MapReduce%20-da-gui-mo-shu-ju-ji-shang-de-jian-hua-shu-ju-chu-li.html</guid><pubDate>Wed, 22 Apr 2026 12:56:13 +0000</pubDate></item><item><title>基于 Lua 的可脚本化操作系统</title><link>https://chenzongyao200127.github.io/post/ji-yu-%20Lua%20-de-ke-jiao-ben-hua-cao-zuo-xi-tong.html</link><description>**作者：** Lourival Vieira Neto（The NetBSD Foundation）、Roberto Ierusalimschy（PUC-Rio 信息学系）、Ana Lúcia de Moura（PUC-Rio 信息学系）、Marc Balmer（The NetBSD Foundation）
+&gt; 底层命题： 如何让完全不懂分布式系统、容错、网络调度的业务工程师，也能在成千上万台机器上编写并处理海量数据？
+&gt; 学习价值（抽象的威力）：将一切复杂的分布式计算抽象为 `Map` 和 `Reduce` 两个接口。</description><guid isPermaLink="true">https://chenzongyao200127.github.io/post/MapReduce%20-da-gui-mo-shu-ju-ji-shang-de-jian-hua-shu-ju-chu-li.html</guid><pubDate>Wed, 22 Apr 2026 12:56:13 +0000</pubDate></item><item><title>基于 Lua 的可脚本化操作系统</title><link>https://chenzongyao200127.github.io/post/ji-yu-%20Lua%20-de-ke-jiao-ben-hua-cao-zuo-xi-tong.html</link><description>**作者：** Lourival Vieira Neto（The NetBSD Foundation）、Roberto Ierusalimschy（PUC-Rio 信息学系）、Ana Lúcia de Moura（PUC-Rio 信息学系）、Marc Balmer（The NetBSD Foundation）
 
 ---
 
