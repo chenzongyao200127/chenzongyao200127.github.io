@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="---
+
+## 第一部分：操作系统的基石与边界重构
+
+**1. The UNIX Time-Sharing System (SOSP 1973)**
+
+* **底层命题：** 如何用最少的抽象原语（File, Process, Pipe）构建一个通用的多用户分时系统？
+* **学习价值（设计的极简主义）：** 它是所有现代 OS 的祖师爷。">
+<meta property="og:title" content="OS Papers 经典论文研读">
+<meta property="og:description" content="---
+
+## 第一部分：操作系统的基石与边界重构
+
+**1. The UNIX Time-Sharing System (SOSP 1973)**
+
+* **底层命题：** 如何用最少的抽象原语（File, Process, Pipe）构建一个通用的多用户分时系统？
+* **学习价值（设计的极简主义）：** 它是所有现代 OS 的祖师爷。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://chenzongyao200127.github.io/post/OS%20Papers%20-jing-dian-lun-wen-yan-du.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>OS Papers 经典论文研读</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">OS Papers 经典论文研读</h1>
+<div class="title-right">
+    <a href="https://chenzongyao200127.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/chenzongyao200127/chenzongyao200127.github.io/issues/6" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><hr>
+<h2>第一部分：操作系统的基石与边界重构</h2>
+<p><strong>1. The UNIX Time-Sharing System (SOSP 1973)</strong></p>
+<ul>
+<li><strong>底层命题：</strong> 如何用最少的抽象原语（File, Process, Pipe）构建一个通用的多用户分时系统？</li>
+<li><strong>学习价值（设计的极简主义）：</strong> 它是所有现代 OS 的祖师爷。你可以学到什么叫“如无必要，勿增实体”。Unix 没有过度设计复杂的 IPC，而是通过“一切皆文件”将计算和 I/O 统一。它演示了如何用极简的接口定义解决极其复杂的系统资源复用问题。</li>
+</ul>
+<p><strong>2. The Design and Implementation of a Log-Structured File System (SOSP 1991)</strong></p>
+<ul>
+<li><strong>底层命题：</strong> 当内存越来越大（读操作大多命中缓存），而磁盘寻道时间没有实质改善时，如何彻底消除随机写带来的性能瓶颈？</li>
+<li><strong>学习价值（硬件约束驱动的架构范式转移）：</strong> LFS 是“识别硬件底层物理约束，并反向重构软件层”的教科书。它将整个文件系统当成一个连续的 Log 来写。你可以通过这篇论文学习如何严丝合缝地将“Problem（磁盘随机写慢）”映射到“Design（全量顺序追加写 + 垃圾回收）”，以及它是如何权衡随之而来的写放大代价的。</li>
+</ul>
+<p><strong>3. The Multikernel: A new OS architecture for scalable multicore systems (SOSP 2009)</strong></p>
+<ul>
+<li><strong>底层命题：</strong> 当多核处理器的核数持续增加，核间通信的延迟已经接近网络通信时，传统的共享内存 OS 架构是否还有效？</li>
+<li><strong>学习价值（打破基础假设）：</strong> 著名的 Barrelfish 操作系统。它挑战了 Linux/Windows 最核心的“共享内存”假设，提出把单机多核当成一个分布式网络来做操作系统（Message passing over shared memory）。这篇论文会教你如何敏锐地捕捉到底层硬件拓扑的变化，并敢于推翻整个领域的系统模型。</li>
+</ul>
+<hr>
+<h2>第二部分：隔离、虚拟化与安全验证</h2>
+<p><strong>4. Xen and the Art of Virtualization (SOSP 2003)</strong></p>
+<ul>
+<li><strong>底层命题：</strong> 在缺乏硬件虚拟化支持（如 Intel VT-x 尚未普及）的时代，如何以接近原生的性能同时运行多个隔离的操作系统？</li>
+<li><strong>学习价值（妥协的艺术与接口设计）：</strong> 引入了“半虚拟化（Paravirtualization）”的概念。它没有死磕“完全透明的虚拟化”，而是选择修改 Guest OS 内核来主动适配底层 Hypervisor。你可以学到在面临严苛的性能约束时，如何通过重新定义系统边界（API/ABI）来达成最优解。</li>
+</ul>
+<p><strong>5. seL4: Formal Verification of an OS Kernel (SOSP 2009)</strong></p>
+<ul>
+<li><strong>底层命题：</strong> 我们能否在数学意义上证明一个通用微内核的 C 代码实现 100% 符合其高层安全规范，且不引入无法接受的性能开销？</li>
+<li><strong>学习价值（真正的 Correct-by-Construction）：</strong> 如果你对我们刚才讨论的 SpecFS 论文中模糊的“规范生成”感到不满，seL4 就是最极致的对立面。它展示了什么叫严格的机器证明。你可以学到为了适应形式化验证，系统架构必须做出哪些彻底的让步（如资源分配推给用户态），以及系统安全模型到底该如何建立。</li>
+</ul>
+<p><strong>6. Komodo: Using verification to disentangle secure-enclave hardware from software (SOSP 2017)</strong></p>
+<ul>
+<li><strong>底层命题：</strong> 现有的硬件可信执行环境（如 SGX）将复杂的安全逻辑硬连线在硅片中，导致漏洞难以修复且无法验证，能否将硬件的安全监控器解耦到可形式化验证的软件层？</li>
+<li><strong>学习价值（软硬协同与机密计算）：</strong> 对于关注系统安全和硬件级隔离的工程师来说，这篇论文深刻揭示了硬件飞地（Enclave）的底层机制，并演示了如何用软件（基于 ARM TrustZone）接管安全边界，是研究机密计算体系结构的必读之作。</li>
+</ul>
+<hr>
+<h2>第三部分：从逻辑时钟到分布式共识</h2>
+<p><strong>7. Spanner: Google's Globally-Distributed Database (OSDI 2012)</strong></p>
+<ul>
+<li>
+<strong>底层命题：</strong> 在全球范围内部署的分布式系统中，如何提供严格的外部一致性（External Consistency）而不需要跨越半个地球的集中式锁？</li>
+<li>
+<strong>学习价值（用物理法则解决软件难题）：</strong> 如果你已经了解了 Lamport 的逻辑时钟（Time, Clocks, and the Ordering of Events），Spanner 就是它的现代工业级升华。Google 没有继续在纯软件逻辑上绕圈子，而是引入了 GPS 和原子钟（TrueTime API），将时间的不确定性量化为一个绝对的误差边界 $[t.earliest, t.latest]$。这是系统设计中“用硬件创新降维打击软件复杂度”的巅峰。</li>
+</ul>
+<hr>
+<h2>第四部分：语言安全与新型系统架构</h2>
+<p><strong>8. Redleaf: Isolation and Communication in a Safe Operating System (OSDI 2020)</strong></p>
+<ul>
+<li>
+<p><strong>底层命题：</strong> 如果我们使用一种内存安全的语言（Rust），能否抛弃昂贵的硬件页表隔离（MMU），转而利用语言的类型系统来实现轻量级、零拷贝的内核模块隔离？</p>
+</li>
+<li>
+<p><strong>学习价值（Rust 进内核的哲学）：</strong> 这不是一篇简单地“用 Rust 重写 C”的论文。它深度利用了 Rust 的所有权（Ownership）和线性类型（Linear Types）特性，重新定义了 IPC（进程间通信）和故障恢复机制。它会让你深刻理解，新的语言特性如何直接改变操作系统的底层架构选型。</p>
+</li>
+</ul>
+<p>[[RedLeaf 一个安全操作系统中的隔离与通信]]</p>
+<hr>
+<h2>第五部分：AI 基础设施与底层优化的碰撞</h2>
+<p><strong>9. vLLM: Easy, Fast, and Cheap LLM Serving with PagedAttention (SOSP 2023)</strong></p>
+<ul>
+<li><strong>底层命题：</strong> 为什么大语言模型在推理时显存利用率如此低下？根本原因是由于 KV Cache 的动态增长导致了严重的内存碎片。</li>
+<li><strong>学习价值（跨界思维）：</strong> 这篇论文极其优美地将操作系统中最古老的概念——<strong>虚拟内存分页（Paging）</strong>——应用到了 AI 大模型的显存管理中。这是一个典型的“问题定义极其精准，设计完全对应问题”的高水平论文。它会教你如何用经典的 OS 思想去解决最前沿的 AI 系统瓶颈。</li>
+</ul>
+<p><strong>10. MapReduce: Simplified Data Processing on Large Clusters (OSDI 2004)</strong></p>
+<ul>
+<li><strong>底层命题：</strong> 如何让完全不懂分布式系统、容错、网络调度的业务工程师，也能在成千上万台机器上编写并处理海量数据？</li>
+<li><strong>学习价值（抽象的威力）：</strong> 将一切复杂的分布式计算抽象为 <code class="notranslate">Map</code> 和 <code class="notranslate">Reduce</code> 两个接口。尽管如今它的实现已被 Spark/Flink 取代，但它在“如何划定系统框架与用户逻辑的边界”、“如何通过设计彻底屏蔽底层硬件故障”上的第一性原理思考，至今无法被超越。</li>
+</ul>
+<hr>
+<blockquote>
+<p>这几年看的 paper 不少，但我觉得真正矫正我 first principle 的还是真就那几个 <a href="https://zhida.zhihu.com/search?content_id=766385283&amp;content_type=Answer&amp;match_order=1&amp;q=Turing+Award&amp;zhida_source=entity" rel="nofollow">Turing Award</a> 的老 paper，Dijkstra 和 Knuth 对编程的思考; Lamport 的 existence of refinement mapping, Codd 的 relational model, Jim Gray 的 transactions 等等。人就是很微妙，看了很多东西看不懂，觉得懂了就变成 small explanation 了，也就是“压缩即智能”吧。</p>
+</blockquote>
+<hr>
+<h2>1. Edsger W. Dijkstra: 编程的艺术与逻辑</h2>
+<p>Dijkstra 不仅仅发明了算法，他更确立了“编程是数学分支”的思想。</p>
+<ul>
+<li><strong>《Go To Statement Considered Harmful》 (1968)</strong>：这不仅是关于一个语法的争论，它确立了<strong>结构化编程</strong>的核心——程序的静态结构（代码）与动态执行过程之间的对应关系必须是可预测的。</li>
+<li><strong>《Notes on Structured Programming》 (1970)</strong>：他在这里系统地讨论了如何通过分层抽象和严格的逻辑推导来处理软件的复杂性。</li>
+<li><strong>《A Discipline of Programming》 (1976)</strong>：引入了著名的 <strong>GCL (Guarded Command Language)</strong>，通过“弱前置条件”推导程序正确性。</li>
+</ul>
+<h2>2. Donald Knuth: 算法的严谨性</h2>
+<p>Knuth 矫正的是我们对“程序效率”和“文学化表达”的认知。</p>
+<ul>
+<li>
+<strong>《The Art of Computer Programming》 (TAOCP)</strong> 系列：虽然是书，但他早期的论文（如关于 LR 解析器的研究）奠定了基础。他教导我们：只有通过对算法复杂度的极致分析（即他的 $O$ 符号体系），才能真正理解计算的边界。</li>
+<li>
+<strong>《Literate Programming》 (1984)</strong>：他认为程序应该像文学作品一样阅读，代码是写给人看的，顺便给机器执行。</li>
+</ul>
+<h2>3. Leslie Lamport: 分布式系统的真理</h2>
+<p>Lamport 的工作是所有分布式共识和状态机理论的源头。</p>
+<ul>
+<li><strong>《The Existence of Refinement Mappings》 (1991)</strong>：这是你专门提到的那一篇。它解决了“如何证明一个高层规范（Specification）与底层实现（Implementation）是等价的”这一哲学问题。它通过 <strong>TLA+</strong>（时序逻辑操作）的思想，定义了什么是“正确性步进”。</li>
+<li><strong>《Time, Clocks, and the Ordering of Events in a Distributed System》 (1978)</strong>：分布式领域的圣经，定义了偏序关系（Happened-before）和逻辑时钟。</li>
+</ul>
+<h2>4. Edgar F. Codd: 关系模型的奠基</h2>
+<p>Codd 将数据从繁琐的物理存储逻辑（如指针、链表）中解放出来。</p>
+<ul>
+<li><strong>《A Relational Model of Data for Large Shared Data Banks》 (1970)</strong>：这篇论文提出了“关系论”代替“层次模型”。它强制我们将逻辑表示与物理实现分离，这是数据库领域最伟大的“第一性原理”。</li>
+</ul>
+<h2>5. Jim Gray: 事务的鲁棒性</h2>
+<p>Jim Gray 定义了现代系统的“可靠性”语义。</p>
+<ul>
+<li><strong>《Notes on Data Base Operating Systems》 (1978)</strong>：在这里他系统化了 <strong>ACID</strong> 的雏形，特别是原子性（Atomicity）和两阶段提交（2PC）。</li>
+<li><strong>《The Transaction Concept: Virtues and Limitations》 (1981)</strong>：深入探讨了事务作为处理并发和故障的通用抽象，这是所有高并发系统的基石。</li>
+</ul>
+<hr>
+<p>这些材料通常不关注具体的工程实现（Implementation），而是关注<strong>表达能力的边界</strong>、<strong>系统复杂度的管理</strong>以及<strong>软硬件的契约</strong>。</p>
+<hr>
+<h2>1. 表达能力与计算本质：Alan Turing &amp; Alonzo Church</h2>
+<p>如果你想理解为什么 Rust 的类型系统能做这么多事，或者为什么函数式编程不是异类，必须回到源头。</p>
+<ul>
+<li>
+<p><strong>Alan Turing: 《On Computable Numbers, with an Application to the Entscheidungsproblem》 (1936)</strong></p>
+</li>
+<li>
+<p><strong>第一性原理：</strong> 它定义了什么是“可计算”。它告诉我们，无论现在的量子计算机或 AI 多么强大，只要它符合图灵机模型，其逻辑边界在 1936 年就被锁死了。</p>
+</li>
+<li>
+<p><strong>John Backus: 《Can Programming Be Liberated from the von Neumann Style?》 (1977)</strong></p>
+</li>
+<li>
+<p><strong>第一性原理：</strong> 图灵奖演说。他挑战了指令式编程的本质（冯·诺依曼瓶颈），提出了函数式编程作为一种更纯粹的数学表达方式。这对理解现代语言中的不变性（Immutability）和声明式编程至关重要。</p>
+</li>
+</ul>
+<h2>2. 系统设计的“奥卡姆剃刀”：Saltzer &amp; Schroeder</h2>
+<p>在安全和系统架构领域，这两位制定的原则至今没有被超越。</p>
+<ul>
+<li>
+<p><strong>Jerome Saltzer &amp; Michael Schroeder: 《The Protection of Information in Computer Systems》 (1975)</strong></p>
+</li>
+<li>
+<p><strong>第一性原理：</strong> 提出了<strong>最小特权原则 (Least Privilege)</strong>、<strong>经济机制 (Economy of Mechanism)</strong> 等 8 大原则。</p>
+</li>
+<li>
+<p><strong>为什么重要：</strong> 你正在研究的 TEE（可信执行环境）或 Confidential Computing，其核心诉求——“减少 TCB (Trusted Computing Base)”，本质上就是这篇论文中“Economy of Mechanism”的极致体现。</p>
+</li>
+</ul>
+<h2>3. 操作系统与并发的元模型：Brinch Hansen &amp; Hoare</h2>
+<p>如果你对多线程并发感到痛苦，那是由于你还没看到这些“元抽象”。</p>
+<ul>
+<li>
+<p><strong>C.A.R. Hoare: 《Communicating Sequential Processes》 (CSP, 1978)</strong></p>
+</li>
+<li>
+<p><strong>第一性原理：</strong> “不要通过共享内存来通信，而要通过通信来共享内存”。这是 Go 语言和 Rust 某些并发模型的哲学底座。</p>
+</li>
+<li>
+<p><strong>Per Brinch Hansen: 《Monitors: An Operating System Structuring Concept》 (1974)</strong></p>
+</li>
+<li>
+<p><strong>第一性原理：</strong> 定义了管程（Monitor），这是几乎所有现代高级语言（Java, C++ 等）处理并发锁的逻辑模型。</p>
+</li>
+</ul>
+<h2>4. 复杂性管理的哲学：Brooks &amp; Parnas</h2>
+<p>这两位教导我们如何处理软件工程中那些“看不见”的熵。</p>
+<ul>
+<li>
+<p><strong>Fred Brooks: 《No Silver Bullet — Essence and Accident in Software Engineering》 (1986)</strong></p>
+</li>
+<li>
+<p><strong>第一性原理：</strong> 区分了<strong>本质复杂度 (Essence)</strong> 和 <strong>偶然复杂度 (Accident)</strong>。</p>
+</li>
+<li>
+<p><strong>认知压缩：</strong> 它让你在看到一个新技术时，瞬间判断出它是在解决问题本身（本质），还是只是在优化工具（偶然）。</p>
+</li>
+<li>
+<p><strong>David Parnas: 《On the Criteria to Be Used in Decomposing Systems into Modules》 (1972)</strong></p>
+</li>
+<li>
+<p><strong>第一性原理：</strong> 提出了<strong>信息隐藏 (Information Hiding)</strong>。这不是简单的“私有变量”，而是关于“变化的隔离”。</p>
+</li>
+</ul>
+</div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://chenzongyao200127.github.io">Solar1s' Personal Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行 "+diffDay+" 天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.disabled=true;
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","chenzongyao200127/chenzongyao200127.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+
+
+</script>
+<script>MathJax = {tex: {inlineMath: [["$", "$"]]}};</script><script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+</html>
