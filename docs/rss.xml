@@ -1,5 +1,13 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Solar1s' Personal Blog</title><link>https://chenzongyao200127.github.io</link><description>Life is not a rat race</description><copyright>Solar1s' Personal Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://chenzongyao200127.github.io</link></image><lastBuildDate>Tue, 28 Apr 2026 11:33:19 +0000</lastBuildDate><managingEditor>Solar1s' Personal Blog</managingEditor><ttl>60</ttl><webMaster>Solar1s' Personal Blog</webMaster><item><title>Log-Structured File System - 日志结构文件系统的设计与实现</title><link>https://chenzongyao200127.github.io/post/Log-Structured%20File%20System%20-%20-ri-zhi-jie-gou-wen-jian-xi-tong-de-she-ji-yu-shi-xian.html</link><description>**Mendel Rosenblum 和 John K. Ousterhout**
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Solar1s' Personal Blog</title><link>https://chenzongyao200127.github.io</link><description>Life is not a rat race</description><copyright>Solar1s' Personal Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://chenzongyao200127.github.io</link></image><lastBuildDate>Tue, 28 Apr 2026 11:34:22 +0000</lastBuildDate><managingEditor>Solar1s' Personal Blog</managingEditor><ttl>60</ttl><webMaster>Solar1s' Personal Blog</webMaster><item><title>Singularity 重新审视软件栈</title><link>https://chenzongyao200127.github.io/post/Singularity%20-zhong-xin-shen-shi-ruan-jian-zhan.html</link><description>**Galen C. Hunt 与 James R. Larus**
+Microsoft Research Redmond
+galenh@microsoft.com
+
+---
+
+## 摘要
+
+每一个操作系统都体现了一系列设计决策。</description><guid isPermaLink="true">https://chenzongyao200127.github.io/post/Singularity%20-zhong-xin-shen-shi-ruan-jian-zhan.html</guid><pubDate>Tue, 28 Apr 2026 11:33:53 +0000</pubDate></item><item><title>Log-Structured File System - 日志结构文件系统的设计与实现</title><link>https://chenzongyao200127.github.io/post/Log-Structured%20File%20System%20-%20-ri-zhi-jie-gou-wen-jian-xi-tong-de-she-ji-yu-shi-xian.html</link><description>**Mendel Rosenblum 和 John K. Ousterhout**
 
 加利福尼亚大学伯克利分校
 电气工程与计算机科学系，计算机科学分部
