@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="**Mendel Rosenblum 和 John K. Ousterhout**
+
+加利福尼亚大学伯克利分校
+电气工程与计算机科学系，计算机科学分部
+Berkeley, CA 94720
+mendel@sprite.berkeley.edu, ouster@sprite.berkeley.edu
+
+---
+
+> The Design and Implementation of a Log-Structured File System (SOSP 1991)
+> 底层命题：当内存越来越大（读操作大多命中缓存），而磁盘寻道时间没有实质改善时，如何彻底消除随机写带来的性能瓶颈？
+> 学习价值（硬件约束驱动的架构范式转移）：LFS 是“识别硬件底层物理约束，并反向重构软件层”的教科书。">
+<meta property="og:title" content="Log-Structured File System - 日志结构文件系统的设计与实现">
+<meta property="og:description" content="**Mendel Rosenblum 和 John K. Ousterhout**
+
+加利福尼亚大学伯克利分校
+电气工程与计算机科学系，计算机科学分部
+Berkeley, CA 94720
+mendel@sprite.berkeley.edu, ouster@sprite.berkeley.edu
+
+---
+
+> The Design and Implementation of a Log-Structured File System (SOSP 1991)
+> 底层命题：当内存越来越大（读操作大多命中缓存），而磁盘寻道时间没有实质改善时，如何彻底消除随机写带来的性能瓶颈？
+> 学习价值（硬件约束驱动的架构范式转移）：LFS 是“识别硬件底层物理约束，并反向重构软件层”的教科书。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://chenzongyao200127.github.io/post/Log-Structured%20File%20System%20-%20-ri-zhi-jie-gou-wen-jian-xi-tong-de-she-ji-yu-shi-xian.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>Log-Structured File System - 日志结构文件系统的设计与实现</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">Log-Structured File System - 日志结构文件系统的设计与实现</h1>
+<div class="title-right">
+    <a href="https://chenzongyao200127.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/chenzongyao200127/chenzongyao200127.github.io/issues/8" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><p><strong>Mendel Rosenblum 和 John K. Ousterhout</strong></p>
+<p>加利福尼亚大学伯克利分校<br>
+电气工程与计算机科学系，计算机科学分部<br>
+Berkeley, CA 94720<br>
+<a href="mailto:mendel@sprite.berkeley.edu">mendel@sprite.berkeley.edu</a>, <a href="mailto:ouster@sprite.berkeley.edu">ouster@sprite.berkeley.edu</a></p>
+<hr>
+<blockquote>
+<p>The Design and Implementation of a Log-Structured File System (SOSP 1991)<br>
+底层命题：当内存越来越大（读操作大多命中缓存），而磁盘寻道时间没有实质改善时，如何彻底消除随机写带来的性能瓶颈？<br>
+学习价值（硬件约束驱动的架构范式转移）：LFS 是“识别硬件底层物理约束，并反向重构软件层”的教科书。它将整个文件系统当成一个连续的 Log 来写。你可以通过这篇论文学习如何严丝合缝地将“Problem（磁盘随机写慢）”映射到“Design（全量顺序追加写 + 垃圾回收）”，以及它是如何权衡随之而来的写放大代价的。</p>
+</blockquote>
+<h2>摘要</h2>
+<p>本文提出了一种新的磁盘存储管理技术，称为日志结构文件系统（Log-Structured File System）。日志结构文件系统将所有对磁盘的修改以日志式结构顺序写入，从而同时加速文件写入和崩溃恢复。日志是磁盘上唯一的结构；它包含索引信息，使得文件能够从日志中被高效地读回。为了在磁盘上维持大片连续的空闲区域以实现快速写入，我们将日志划分为多个段（segment），并使用段清理器（segment cleaner）从碎片化严重的段中压缩存活信息。我们通过一系列模拟实验证明了一种基于代价与收益（cost and benefit）的简单清理策略的高效性。我们实现了一个名为 Sprite LFS 的日志结构文件系统原型；在小文件写入方面，它比当前 Unix 文件系统快一个数量级，同时在读取和大文件写入方面达到或超过了 Unix 的性能。即使包含清理开销，Sprite LFS 也能利用磁盘带宽的 70% 用于写入，而 Unix 文件系统通常只能利用 5-10%。</p>
+<hr>
+<h2>1. 引言</h2>
+<p>在过去十年中，CPU 速度急剧提升，而磁盘访问时间仅有缓慢改善。这一趋势在未来很可能会持续，并将导致越来越多的应用程序变为磁盘受限（disk-bound）。为了缓解这一问题的影响，我们设计了一种新的磁盘存储管理技术——日志结构文件系统，它使用磁盘的效率比当前文件系统高出一个数量级。</p>
+<p>日志结构文件系统基于以下假设：文件被缓存在主存中，且不断增长的内存容量将使缓存在满足读请求方面越来越有效 [1]。因此，磁盘流量将以写操作为主。日志结构文件系统将所有新信息以一种称为日志（log）的顺序结构写入磁盘。这种方法通过消除几乎所有的寻道操作，极大地提升了写入性能。日志的顺序特性也使得崩溃恢复大为加速：当前的 Unix 文件系统在崩溃后通常必须扫描整个磁盘以恢复一致性，而日志结构文件系统只需检查日志的最近部分。</p>
+<p>日志的概念并不新鲜，近年来也有若干文件系统将日志作为辅助结构以加速写入和崩溃恢复 [2, 3]。然而，这些系统仅将日志用于临时存储；信息的永久存储位置仍然是磁盘上传统的随机访问存储结构。相比之下，日志结构文件系统将数据永久存储在日志中：磁盘上没有其他结构。日志中包含索引信息，使得文件的读取效率可与当前文件系统相媲美。</p>
+<p>为了使日志结构文件系统高效运行，它必须确保始终有大片连续的空闲空间可用于写入新数据。这是日志结构文件系统设计中最困难的挑战。在本文中，我们提出了一种基于大区段（称为段，segment）的解决方案，其中段清理器进程不断从碎片化严重的段中压缩存活数据来重新生成空段。我们使用模拟器探索了不同的清理策略，发现了一种简单但有效的基于代价与收益的算法：它将较老的、变化缓慢的数据与年轻的、快速变化的数据分离，并在清理过程中对它们进行不同处理。</p>
+<p>我们已经构建了一个名为 Sprite LFS 的日志结构文件系统原型，它现在作为 Sprite 网络操作系统 [4] 的一部分投入生产使用。基准测试程序表明，对于小文件写入，Sprite LFS 的原始写入速度比 Unix 快一个数量级以上。即使对于其他工作负载（如包含读操作和大文件访问的负载），Sprite LFS 在除一种情况（随机写入后再顺序读取文件）外的所有情况下都至少与 Unix 一样快。我们还测量了生产系统中清理的长期开销。总体而言，Sprite LFS 允许磁盘原始带宽的约 65-75% 用于写入新数据（其余用于清理）。相比之下，Unix 系统只能将磁盘原始带宽的 5-10% 用于写入新数据；其余时间耗费在寻道上。</p>
+<p>本文其余部分组织为六个章节。第 2 节回顾了为 1990 年代计算机设计文件系统时所面临的问题。第 3 节讨论了日志结构文件系统的设计备选方案，并推导出 Sprite LFS 的结构，特别关注清理机制。第 4 节描述了 Sprite LFS 的崩溃恢复系统。第 5 节使用基准测试程序和清理开销的长期测量数据评估 Sprite LFS。第 6 节将 Sprite LFS 与其他文件系统进行比较，第 7 节进行总结。</p>
+<hr>
+<h2>2. 面向 1990 年代的文件系统设计</h2>
+<p>文件系统设计受两种一般性力量支配：技术（提供一组基本构件）和工作负载（决定必须高效执行的操作集合）。本节总结正在进行的技术变革，描述其对文件系统设计的影响，同时描述影响 Sprite LFS 设计的工作负载，并说明当前文件系统为何难以应对这些工作负载和技术变革。</p>
+<h3>2.1. 技术</h3>
+<p>三个技术组件对文件系统设计尤为重要：处理器、磁盘和主存。</p>
+<p>处理器之所以重要，是因为其速度以近乎指数的速率增长，而且这种改进可能贯穿 1990 年代的大部分时间。这给计算机系统的所有其他组件施加了同步加速的压力，以避免系统失衡。</p>
+<p>磁盘技术也在快速进步，但改进主要体现在成本和容量方面，而非性能。磁盘性能有两个组成部分：传输带宽和访问时间。尽管两者都在改善，但改善速率远低于 CPU 速度的提升。磁盘传输带宽可以通过使用磁盘阵列和并行磁头盘 [5] 获得大幅提升，但访问时间似乎不太可能有重大改善（它由难以改进的机械运动决定）。如果一个应用程序产生一系列由寻道分隔的小磁盘传输，那么即使有更快的处理器，该应用程序在未来十年也不太可能获得太大的加速。</p>
+<p>第三个技术组件是主存，其容量以指数速率增长。现代文件系统将最近使用的文件数据缓存在主存中，更大的主存使更大的文件缓存成为可能。这对文件系统行为有两方面影响。第一，更大的文件缓存通过吸收更大比例的读请求 [1, 6] 来改变呈现给磁盘的工作负载。大多数写请求为了安全性最终必须反映到磁盘上，因此磁盘流量（和磁盘性能）将越来越多地被写操作所主导。</p>
+<p>大文件缓存的第二个影响是，它们可以充当写缓冲区，在将任何修改块写入磁盘之前收集大量的修改块。缓冲可能使得更高效地写入这些块成为可能——例如，以单次顺序传输写入所有块且只需一次寻道。当然，写缓冲有一个缺点，即增加了崩溃时丢失的数据量。在本文中，我们假设崩溃不频繁，并且在每次崩溃中丢失几秒或几分钟的工作是可以接受的；对于需要更好崩溃恢复的应用程序，可以将非易失性 RAM 用于写缓冲区。</p>
+<h3>2.2. 工作负载</h3>
+<p>在计算机应用中，存在多种不同的文件系统工作负载。对文件系统设计而言最难高效处理的工作负载之一存在于办公和工程环境中。办公和工程应用程序往往以小文件访问为主；多项研究测量到的平均文件大小仅为几千字节 [1, 6-8]。小文件通常导致小型随机磁盘 I/O，且此类文件的创建和删除时间往往被对文件系统 " 元数据 "（用于定位文件属性和块的数据结构）的更新所主导。</p>
+<p>以大文件顺序访问为主的工作负载，例如超级计算环境中的工作负载，也带来有趣的问题，但并非文件系统软件层面的问题。已有多种技术可确保此类文件在磁盘上顺序布局，因此 I/O 性能往往受限于 I/O 和内存子系统的带宽，而非文件分配策略。在设计日志结构文件系统时，我们决定着重于小文件访问的效率，将大文件访问的带宽改进留给硬件设计者。幸运的是，Sprite LFS 中使用的技术对大文件也同样适用。</p>
+<h3>2.3. 现有文件系统的问题</h3>
+<p>当前文件系统存在两个普遍问题，使其难以应对 1990 年代的技术和工作负载。第一，它们将信息分散在磁盘各处，导致过多的小型访问。例如，Berkeley Unix 快速文件系统（Unix FFS）[9] 在将单个文件顺序布局在磁盘上方面非常有效，但它在物理上分离了不同的文件。此外，文件的属性（"inode"）与文件内容分离，包含文件名的目录项也是如此。在 Unix FFS 中创建一个新文件至少需要五次独立的磁盘 I/O，每次之前都需要一次寻道：两次访问文件属性，加上分别一次访问文件数据、目录数据和目录属性。在这样的系统中写入小文件时，磁盘的潜在带宽只有不到 5% 用于新数据；其余时间耗费在寻道上。</p>
+<p>当前文件系统的第二个问题是它们倾向于同步写入：应用程序必须等待写入完成，而不是在写入在后台处理时继续执行。例如，即使 Unix FFS 异步写入文件数据块，文件系统元数据结构（如目录和 inode）仍然是同步写入的。对于包含大量小文件的工作负载，磁盘流量被同步元数据写入所主导。同步写入将应用程序的性能与磁盘的性能耦合在一起，使得应用程序难以从更快的 CPU 中获益。同步写入还破坏了将文件缓存用作写缓冲区的潜力。不幸的是，像 NFS[10] 这样的网络文件系统引入了以前不存在的额外同步行为。这简化了崩溃恢复，但降低了写入性能。</p>
+<p>在本文中，我们使用 Berkeley Unix 快速文件系统（Unix FFS）作为当前文件系统设计的示例，并将其与日志结构文件系统进行比较。选用 Unix FFS 设计是因为它在文献中有充分的文档记录，并被多种流行的 Unix 操作系统所使用。本节中提出的问题并非 Unix FFS 所独有，在大多数其他文件系统中也可以找到。</p>
+<hr>
+<h2>3. 日志结构文件系统</h2>
+<p>日志结构文件系统的基本思想是：通过在文件缓存中缓冲一系列文件系统变更，然后在单次磁盘写操作中将所有变更顺序写入磁盘，从而改善写入性能。在写操作中写入磁盘的信息包括文件数据块、属性、索引块、目录，以及用于管理文件系统的几乎所有其他信息。对于包含大量小文件的工作负载，日志结构文件系统将传统文件系统的大量小型同步随机写入转换为可利用近乎 100% 原始磁盘带宽的大型异步顺序传输。</p>
+<p>尽管日志结构文件系统的基本思想很简单，但必须解决两个关键问题才能实现日志方式的潜在优势。第一个问题是如何从日志中检索信息；这是第 3.1 节的主题。第二个问题是如何管理磁盘上的空闲空间，使得始终有大片连续空闲空间可用于写入新数据。这是一个困难得多的问题；它是第 3.2-3.6 节的主题。表 1 包含了 Sprite LFS 用于解决上述问题的磁盘数据结构摘要；这些数据结构将在本文后续章节中详细讨论。</p>
+<p><strong>表 1 — Sprite LFS 存储在磁盘上的主要数据结构摘要</strong></p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>数据结构</th>
+<th>用途</th>
+<th>位置</th>
+<th>章节</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inode</td>
+<td>定位文件的块，保存保护位、修改时间等</td>
+<td>日志</td>
+<td>3.1</td>
+</tr>
+<tr>
+<td>Inode 映射（Inode map）</td>
+<td>定位 inode 在日志中的位置，保存最后访问时间和版本号</td>
+<td>日志</td>
+<td>3.1</td>
+</tr>
+<tr>
+<td>间接块（Indirect block）</td>
+<td>定位大文件的块</td>
+<td>日志</td>
+<td>3.1</td>
+</tr>
+<tr>
+<td>段摘要（Segment summary）</td>
+<td>标识段的内容（每个块的文件号和偏移量）</td>
+<td>日志</td>
+<td>3.2</td>
+</tr>
+<tr>
+<td>段使用表（Segment usage table）</td>
+<td>记录段中仍存活的字节数，存储段中数据的最后写入时间</td>
+<td>日志</td>
+<td>3.6</td>
+</tr>
+<tr>
+<td>超级块（Superblock）</td>
+<td>保存静态配置信息，如段的数量和段大小</td>
+<td>固定</td>
+<td>—</td>
+</tr>
+<tr>
+<td>检查点区域（Checkpoint region）</td>
+<td>定位 inode 映射和段使用表的块，标识日志中最后一个检查点</td>
+<td>固定</td>
+<td>4.1</td>
+</tr>
+<tr>
+<td>目录变更日志（Directory change log）</td>
+<td>记录目录操作以维护 inode 中引用计数的一致性</td>
+<td>日志</td>
+<td>4.2</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><em>注：Sprite LFS 中既没有位图也没有空闲列表。Inode、间接块和超级块与 Unix FFS 中同名的数据结构类似。</em></p>
+<h3>3.1. 文件定位与读取</h3>
+<p>尽管 " 日志结构 " 这个术语可能暗示需要顺序扫描才能从日志中检索信息，但在 Sprite LFS 中并非如此。我们的目标是匹配或超越 Unix FFS 的读取性能。为实现这一目标，Sprite LFS 在日志中输出索引结构以允许随机访问检索。Sprite LFS 使用的基本结构与 Unix FFS 中使用的相同：对于每个文件都存在一个称为 inode 的数据结构，它包含文件的属性（类型、所有者、权限等）以及文件前十个块的磁盘地址；对于大于十个块的文件，inode 还包含一个或多个间接块的磁盘地址，每个间接块包含更多数据块或间接块的地址。一旦找到了文件的 inode，Sprite LFS 和 Unix FFS 中读取文件所需的磁盘 I/O 次数是相同的。</p>
+<p>在 Unix FFS 中，每个 inode 位于磁盘上的固定位置；给定文件的标识号，一个简单的计算即可得到文件 inode 的磁盘地址。相比之下，Sprite LFS 不将 inode 放置在固定位置；它们被写入日志中。Sprite LFS 使用一个称为 inode 映射（inode map）的数据结构来维护每个 inode 的当前位置。给定文件的标识号，必须索引 inode 映射以确定 inode 的磁盘地址。inode 映射被划分为多个块并写入日志；每个磁盘上的固定检查点区域标识所有 inode 映射块的位置。幸运的是，inode 映射足够紧凑，可以将其活跃部分缓存在主存中：inode 映射查找很少需要磁盘访问。</p>
+<p>图 1 展示了在不同目录中创建两个新文件后 Sprite LFS 和 Unix FFS 的磁盘布局。尽管两种布局具有相同的逻辑结构，但日志结构文件系统产生了更紧凑的排列。因此，Sprite LFS 的写入性能远优于 Unix FFS，而其读取性能同样出色。</p>
+<p><strong>图 1 — Sprite LFS 与 Unix FFS 的比较。</strong> 此示例展示了 Sprite LFS 和 Unix FFS 在创建两个名为 dir1/file1 和 dir2/file2 的单块文件时写入的修改磁盘块。每个系统必须为 file1 和 file2 写入新的数据块和 inode，再加上包含目录的新数据块和 inode。Unix FFS 需要十次非顺序写入来记录新信息（新文件的 inode 各写入两次以简化崩溃恢复），而 Sprite LFS 在单次大型写入中完成所有操作。在两个系统中读取文件所需的磁盘访问次数相同。Sprite LFS 还写出新的 inode 映射块以记录新的 inode 位置。</p>
+<h3>3.2. 空闲空间管理：段</h3>
+<p>日志结构文件系统中最困难的设计问题是空闲空间的管理。目标是维持大片连续空闲区域用于写入新数据。最初所有空闲空间位于磁盘上的单个连续区域中，但当日志到达磁盘末尾时，空闲空间将被碎片化为许多小区域，对应于已删除或已覆写的文件。</p>
+<p>从这一点开始，文件系统有两种选择：穿线（threading）和复制（copying）。图 2 对此进行了说明。第一种方案是保留存活数据在原位，让日志穿过空闲区域。不幸的是，穿线会导致空闲空间严重碎片化，使得大型连续写入变得不可能，日志结构文件系统将不比传统文件系统更快。第二种方案是将存活数据从日志中复制出来，以留出大片连续空闲区域用于写入。在本文中我们假设存活数据以压缩形式写回到日志头部；它也可以被移动到另一个日志结构文件系统以形成日志层次结构，或者被移动到某种完全不同的文件系统或归档系统中。复制的缺点是其开销，特别是对于长寿命文件；在最简单的情况下，日志在磁盘上循环工作且存活数据被复制回日志中，所有长寿命文件在日志每次扫过磁盘时都必须被复制。</p>
+<p><strong>图 2 — 日志结构文件系统的可能空闲空间管理方案。</strong> 在日志结构文件系统中，日志的空闲空间可以通过复制旧块或让日志穿过旧块来生成。图左侧展示了穿线日志方式，其中日志跳过活跃块并覆写已删除或已覆写文件的块。日志块之间维护指针，以便在崩溃恢复期间可以追踪日志。图右侧展示了复制方案，其中通过读取日志末尾之后的磁盘部分并将该部分的活跃块与新数据一起重写到新生成的空间中来生成日志空间。</p>
+<p>Sprite LFS 使用穿线和复制的组合。磁盘被划分为大的固定大小区域，称为段（segment）。任何给定的段总是从头到尾顺序写入，所有存活数据必须在段被重写之前从中复制出来。然而，日志是逐段穿线的；如果系统能够将长寿命数据聚集在某些段中，则可以跳过这些段，使得数据无需被反复复制。段大小被选择为足够大，使得读取或写入整个段的传输时间远大于寻道到段开头的开销。这允许整段操作以近乎磁盘全带宽运行，而不管段被访问的顺序如何。Sprite LFS 目前使用 512 KB 或 1 MB 的段大小。</p>
+<h3>3.3. 段清理机制</h3>
+<p>将存活数据从段中复制出来的过程称为段清理（segment cleaning）。在 Sprite LFS 中，它是一个简单的三步过程：将若干段读入内存，识别存活数据，将存活数据写回到数量更少的干净段中。此操作完成后，被读取的段被标记为干净，可用于新数据或额外的清理操作。</p>
+<p>作为段清理的一部分，必须能够识别每个段中哪些块是存活的，以便将它们再次写出。还必须能够识别每个块属于哪个文件以及块在文件中的位置；这些信息是更新文件 inode 使其指向块的新位置所需的。Sprite LFS 通过在每个段中写入一个段摘要块（segment summary block）来解决这两个问题。摘要块标识段中写入的每条信息；例如，对于每个文件数据块，摘要块包含该块的文件号和块号。当需要多次日志写入才能填满段时，段可以包含多个段摘要块。（当文件缓存中缓冲的脏块数量不足以填满一个段时，会发生部分段写入。）段摘要块在写入时施加的开销很小，它们在崩溃恢复（见第 4 节）和清理期间都很有用。</p>
+<p>Sprite LFS 还使用段摘要信息来区分存活块和已被覆写或删除的块。一旦知道了块的身份，就可以通过检查文件的 inode 或间接块来确定其存活状态，看相应的块指针是否仍然指向此块。如果是，则该块是存活的；如果不是，则该块已死亡。Sprite LFS 通过在每个文件的 inode 映射条目中保存一个版本号来略微优化此检查；每当文件被删除或截断为零长度时，版本号就会递增。版本号与 inode 号的组合形成文件内容的唯一标识符（uid）。段摘要块记录段中每个块的此 uid；如果在清理段时块的 uid 与 inode 映射中当前存储的 uid 不匹配，则该块可以立即被丢弃而无需检查文件的 inode。</p>
+<p>这种清理方法意味着 Sprite 中没有空闲块列表或位图。除了节省内存和磁盘空间外，消除这些数据结构也简化了崩溃恢复。如果这些数据结构存在，就需要额外的代码来记录对这些结构的变更并在崩溃后恢复一致性。</p>
+<h3>3.4. 段清理策略</h3>
+<p>给定上述基本机制，必须解决四个策略问题：</p>
+<p>（1）段清理器应何时执行？一些可能的选择是让它以低优先级在后台持续运行，或仅在夜间运行，或仅在磁盘空间几乎耗尽时运行。</p>
+<p>（2）一次应清理多少个段？段清理提供了重新组织磁盘数据的机会；一次清理的段越多，重新排列的机会就越多。</p>
+<p>（3）应清理哪些段？一个明显的选择是碎片化最严重的段，但这并非最佳选择。</p>
+<p>（4）存活块被写出时应如何分组？一种可能性是试图增强未来读取的局部性，例如将同一目录中的文件聚集在一个输出段中。另一种可能性是按块的最后修改时间排序，将相近年龄的块聚集到新段中；我们称此方法为年龄排序（age sort）。</p>
+<p>在我们迄今为止的工作中，尚未系统性地研究上述前两个策略。Sprite LFS 在干净段数量低于阈值（通常为几十个段）时开始清理段。它一次清理几十个段，直到干净段数量超过另一个阈值（通常为 50-100 个干净段）。Sprite LFS 的整体性能似乎对阈值的精确选择不太敏感。相比之下，第三和第四个策略决定至关重要：在我们的经验中，它们是决定日志结构文件系统性能的主要因素。第 3 节的其余部分讨论了我们对清理哪些段以及如何对存活数据进行分组的分析。</p>
+<h3>3.5. 模拟结果</h3>
+<p>我们使用一个术语叫做写入代价（write cost）来比较清理策略。写入代价是每字节新数据写入时磁盘平均忙碌时间，包括所有清理开销。写入代价表示为无清理开销时以全带宽写入数据（无寻道时间或旋转延迟）所需时间的倍数。写入代价为 1.0 表示完美：这意味着新数据可以以磁盘全带宽写入且没有清理开销。写入代价为 10 意味着磁盘最大带宽的仅十分之一实际用于写入新数据；其余磁盘时间耗费在寻道、旋转延迟或清理上。</p>
+<p>对于具有大段的日志结构文件系统，无论是写入还是清理，寻道和旋转延迟都可忽略不计，因此写入代价就是移入和移出磁盘的总字节数除以其中代表新数据的字节数。此代价由被清理段的利用率（仍存活数据的比例）决定。在稳态下，清理器必须为每一段的新数据写入生成一个干净段。为此，它完整读取 N 个段并写出 N×u 段的存活数据（其中 u 是段的利用率，且 0≤u&lt;1）。这产生了 N×(1−u) 段的连续空闲空间用于新数据。因此：</p>
+<p>$$写入代价 = \frac{总读写字节数}{新数据写入字节数} = \frac{N + N \times u + N \times (1-u)}{N \times (1-u)} = \frac{2}{1-u}$$</p>
+<p>在上述公式中，我们做了保守假设，即必须完整读取段以恢复存活块；在实践中，仅读取存活块可能更快，特别是当利用率很低时（我们在 Sprite LFS 中尚未尝试这样做）。如果待清理的段没有存活块（u=0），则根本不需要读取该段，写入代价为 1.0。</p>
+<p>图 3 绘制了写入代价作为 u 的函数的曲线。作为参考，Unix FFS 在小文件工作负载上最多利用磁盘带宽的 5-10%，对应写入代价为 10-20（参见 [11] 和第 5.1 节图 8 的具体测量值）。通过日志记录、延迟写入和磁盘请求排序，这大概可以改进到带宽的约 25%[12]，即写入代价为 4。图 3 表明，被清理段的利用率必须低于 0.8，日志结构文件系统才能胜过当前的 Unix FFS；利用率必须低于 0.5 才能胜过改进后的 Unix FFS。</p>
+<p>需要注意的是，上面讨论的利用率不是磁盘上包含存活数据的总体比例；它仅仅是被清理段中存活块的比例。文件使用的变化将导致某些段的利用率低于其他段，清理器可以选择利用率最低的段进行清理；这些段的利用率将低于磁盘的总体平均值。</p>
+<p>即便如此，日志结构文件系统的性能可以通过降低磁盘空间的总体利用率来改善。磁盘使用越少，被清理的段中存活块就越少，从而导致更低的写入代价。日志结构文件系统提供了一种代价 - 性能权衡：如果磁盘空间利用率低，可以实现更高的性能但每可用字节的成本高；如果磁盘容量利用率增加，存储成本降低但性能也降低。这种性能与空间利用率之间的权衡并非日志结构文件系统所独有。例如，Unix FFS 只允许 90% 的磁盘空间被文件占用。剩余 10% 保持空闲以使空间分配算法高效运行。</p>
+<p>在日志结构文件系统中实现低成本高性能的关键是迫使磁盘进入双峰段分布（bimodal segment distribution），即大多数段几乎满载，少数段为空或几乎为空，清理器几乎总是可以处理空段。这允许在高总体磁盘容量利用率下提供低写入代价。下一节描述了我们如何在 Sprite LFS 中实现这种双峰分布。</p>
+<p>我们构建了一个简单的文件系统模拟器，以便在受控条件下分析不同的清理策略。模拟器的模型并不反映实际的文件系统使用模式（其模型比实际情况要严苛得多），但它帮助我们理解了随机访问模式和局部性的影响，这两者都可被利用来降低清理成本。模拟器将文件系统建模为固定数量的 4KB 文件，数量的选择产生特定的总体磁盘容量利用率。在每一步中，模拟器使用以下两种伪随机访问模式之一覆写其中一个文件：</p>
+<ul>
+<li>
+<p><strong>均匀分布（Uniform）：</strong> 每个文件在每一步中被选择的概率相等。</p>
+</li>
+<li>
+<p><strong>热 - 冷分布（Hot-and-cold）：</strong> 文件被分为两组。一组包含 10% 的文件；它被称为热组，因为其文件被选中的概率为 90%。另一组被称为冷组；它包含 90% 的文件，但仅在 10% 的时间被选中。在组内每个文件被选择的概率相等。这种访问模式模拟了一种简单形式的局部性。</p>
+</li>
+</ul>
+<p>在这种方法中，总体磁盘容量利用率保持恒定且不模拟读流量。模拟器运行直到所有干净段耗尽，然后模拟清理器的操作直到干净段数量重新超过阈值。在每次运行中，模拟器被允许运行直到写入代价稳定且所有冷启动方差消除。</p>
+<p>图 4 将两组模拟的结果叠加到图 3 的曲线上。在 "LFS 均匀 " 模拟中使用了均匀访问模式。清理器使用简单的贪心策略（greedy policy），总是选择利用率最低的段进行清理。写出存活数据时，清理器不尝试重新组织数据：存活块按其在被清理段中出现的顺序写出（对于均匀访问模式，没有理由期望重新组织会带来改善）。</p>
+<p>即使在均匀随机访问模式下，段利用率的方差也允许实质上低于从总体磁盘容量利用率和公式 (1) 所预测的写入代价。例如，在 75% 的总体磁盘容量利用率下，被清理段的平均利用率仅为 55%。在总体磁盘容量利用率低于 20% 时，写入代价降到 2.0 以下；这意味着某些被清理的段根本没有存活块，因此无需被读入。</p>
+<p>"LFS 热 - 冷 " 曲线展示了在如上所述具有局部性的访问模式下的写入代价。此曲线的清理策略与 "LFS 均匀 " 相同，只是存活块在写出前按年龄排序。这意味着长寿命（冷）数据倾向于被隔离在与短寿命（热）数据不同的段中；我们认为这种方法会导致所期望的段利用率双峰分布。</p>
+<p>图 4 显示了一个令人惊讶的结果：局部性和 " 更好的 " 分组实际上导致了比无局部性系统更差的性能！我们尝试了不同程度的局部性（例如 95% 的访问集中于 5% 的数据），发现随着局部性的增加，性能越来越差。</p>
+<p>图 5 揭示了这一反直觉结果的原因。在贪心策略下，一个段只有在成为所有段中利用率最低的段时才会被清理。因此，每个段的利用率最终都会降到清理阈值，包括冷段。不幸的是，冷段中的利用率下降非常缓慢，因此这些段往往在清理点上方徘徊很长时间。图 5 显示，在具有局部性的模拟中，有比无局部性模拟更多的段聚集在清理点附近。总体结果是，冷段倾向于在很长时间内占用大量空闲块。</p>
+<p>在研究了这些图形之后，我们认识到清理器必须对热段和冷段进行不同的处理。冷段中的空闲空间比热段中的空闲空间更有价值，因为一旦冷段被清理，它将需要很长时间才能重新积累不可用的空闲空间。换言之，一旦系统从含有冷数据的段中回收了空闲块，它将能够在冷数据再次碎片化并 " 夺回 " 这些块之前 " 保持 " 很长时间。相比之下，清理热段的收益较少，因为数据可能很快死亡，空闲空间将迅速重新积累；系统不如延迟清理一段时间，让更多的块在当前段中死亡。段中空闲空间的价值基于段中数据的稳定性。不幸的是，不知道未来的访问模式就无法预测稳定性。使用 " 段中数据越老，它保持不变的时间可能越长 " 的假设，可以通过数据年龄来估计稳定性。</p>
+<p>为了验证这一理论，我们模拟了一种新的段选择清理策略。该策略根据清理段的收益和清理段的代价对每个段进行评级，并选择收益与代价比率最高的段。收益有两个组成部分：将回收的空闲空间量和该空间可能保持空闲的时间。空闲空间量即 1−u，其中 u 是段的利用率。我们使用段中任何块的最近修改时间（即最年轻块的年龄）来估计空间可能保持空闲的时间长度。清理的收益是这两个组成部分相乘形成的空间 - 时间乘积。清理段的代价是 1+u（一个单位的代价用于读取段，u 用于写回存活数据）。综合所有这些因素，我们得到：</p>
+<p>$$\frac{收益}{代价} = \frac{回收的空闲空间 \times 数据年龄}{代价} = \frac{(1-u) \times age}{1+u}$$</p>
+<p>我们称此策略为代价 - 收益策略（cost-benefit policy）；它允许冷段在比热段高得多的利用率下被清理。</p>
+<p>我们在热 - 冷访问模式下使用代价 - 收益策略和年龄排序重新运行了模拟。如图 6 所示，代价 - 收益策略产生了我们所期望的双峰段分布。该清理策略在约 75% 的利用率下清理冷段，但等到热段利用率降到约 15% 时才清理它们。由于 90% 的写入针对热文件，大多数被清理的段是热段。图 7 显示，代价 - 收益策略将写入代价降低了多达 50%（相对于贪心策略），且日志结构文件系统即使在相对较高的磁盘容量利用率下也能优于最佳的 Unix FFS。我们模拟了多种其他程度和类型的局部性，发现代价 - 收益策略随着局部性的增加而表现更好。</p>
+<p>模拟实验使我们确信应在 Sprite LFS 中实现代价 - 收益方法。如第 5.2 节所示，Sprite LFS 中实际文件系统的行为甚至优于图 7 中的预测。</p>
+<h3>3.6. 段使用表</h3>
+<p>为了支持代价 - 收益清理策略，Sprite LFS 维护一个称为段使用表（segment usage table）的数据结构。对于每个段，该表记录段中存活字节数和段中任何块的最近修改时间。这两个值在段清理器选择待清理段时使用。这些值在段被写入时初始设定，存活字节计数在文件被删除或块被覆写时递减。如果计数降为零，则该段可以无需清理即可重用。段使用表的块被写入日志，其块地址存储在检查点区域中（详见第 4 节）。</p>
+<p>为了按年龄排序存活块，段摘要信息记录了写入该段的最年轻块的年龄。目前 Sprite LFS 不为文件中的每个块保留修改时间；它为整个文件保留一个修改时间。对于非整体修改的文件，此估计将不正确。我们计划修改段摘要信息以包含每个块的修改时间。</p>
+<hr>
+<h2>4. 崩溃恢复</h2>
+<p>当系统崩溃发生时，在磁盘上执行的最近几个操作可能使其处于不一致状态（例如，一个新文件可能已被写入但包含该文件的目录尚未被写入）；在重启期间，操作系统必须审查这些操作以纠正任何不一致性。在没有日志的传统 Unix 文件系统中，系统无法确定最后的变更发生在哪里，因此必须扫描磁盘上的所有元数据结构以恢复一致性。这些扫描的代价已经很高（在典型配置中需要数十分钟），且随着存储系统的扩展而越来越高。</p>
+<p>在日志结构文件系统中，最后磁盘操作的位置很容易确定：它们在日志的末尾。因此，崩溃后应该能够非常快速地恢复。日志的这一优势是众所周知的，并且已在数据库系统 [13] 和其他文件系统 [2, 3, 14] 中被利用。与许多其他日志系统一样，Sprite LFS 使用双管齐下的恢复方法：检查点（checkpoint）——定义文件系统的一致状态，以及前滚（roll-forward）——用于恢复自上次检查点以来写入的信息。</p>
+<h3>4.1. 检查点</h3>
+<p>检查点是日志中所有文件系统结构都一致且完整的位置。Sprite LFS 使用两阶段过程来创建检查点。首先，它将所有修改过的信息写入日志，包括文件数据块、间接块、inode、以及 inode 映射和段使用表的块。然后，它将检查点区域写入磁盘上的特殊固定位置。检查点区域包含 inode 映射和段使用表中所有块的地址，加上当前时间和指向最后写入段的指针。</p>
+<p>重启期间，Sprite LFS 读取检查点区域并使用该信息初始化其主存数据结构。为了处理检查点操作期间的崩溃，实际上有两个检查点区域，检查点操作在两者之间交替进行。检查点时间位于检查点区域的最后一个块中，因此如果检查点失败，时间将不会被更新。重启期间，系统读取两个检查点区域并使用具有较新时间的那个。</p>
+<p>Sprite LFS 在定期间隔以及文件系统被卸载或系统关闭时执行检查点。检查点间隔长则减少了写入检查点的开销，但增加了恢复期间前滚所需的时间；检查点间隔短则改善了恢复时间但增加了正常操作的开销。Sprite LFS 目前使用三十秒的检查点间隔，这可能太短了。定期检查点的替代方案是在给定量的新数据被写入日志后执行检查点；这将为恢复时间设定一个上限，同时在文件系统未以最大吞吐量运行时减少检查点开销。</p>
+<h3>4.2. 前滚</h3>
+<p>原则上，崩溃后仅读取最新的检查点区域并丢弃该检查点之后日志中的所有数据就是安全的。这将实现即时恢复，但自上次检查点以来写入的任何数据都将丢失。为了尽可能多地恢复信息，Sprite LFS 扫描在上次检查点之后写入的日志段。此操作称为前滚（roll-forward）。</p>
+<p>在前滚期间，Sprite LFS 使用段摘要块中的信息来恢复最近写入的文件数据。当摘要块指示存在新的 inode 时，Sprite LFS 更新从检查点读取的 inode 映射，使 inode 映射指向 inode 的新副本。这自动将文件的新数据块纳入恢复后的文件系统。如果发现了某文件的数据块但没有该文件 inode 的新副本，则前滚代码假定磁盘上文件的新版本不完整，并忽略这些新数据块。</p>
+<p>前滚代码还调整从检查点读取的段使用表中的利用率。自检查点以来写入的段的利用率将为零；必须调整它们以反映前滚后留下的存活数据。较旧段的利用率也必须调整以反映文件删除和覆写（两者都可通过日志中新 inode 的存在来识别）。</p>
+<p>前滚中的最后一个问题是如何恢复目录项与 inode 之间的一致性。每个 inode 包含引用该 inode 的目录项的计数；当计数降为零时，文件被删除。不幸的是，崩溃可能发生在 inode 已被写入日志（带有新的引用计数）而包含相应目录项的块尚未被写入时，反之亦然。</p>
+<p>为了恢复目录与 inode 之间的一致性，Sprite LFS 为每次目录变更在日志中输出一条特殊记录。该记录包含操作代码（create、link、rename 或 unlink）、目录项的位置（目录的 i-number 及在目录中的位置）、目录项的内容（名称和 i-number）、以及该项中命名的 inode 的新引用计数。这些记录统称为目录操作日志（directory operation log）；Sprite LFS 保证每条目录操作日志条目在相应的目录块或 inode 之前出现在日志中。</p>
+<p>在前滚期间，目录操作日志用于确保目录项与 inode 之间的一致性：如果日志条目出现但 inode 和目录块并非都已写入，前滚将更新目录和/或 inode 以完成操作。前滚操作可能导致条目被添加到目录中或从目录中移除，以及 inode 上的引用计数被更新。恢复程序将变更后的目录、inode、inode 映射和段使用表块追加到日志中，并写入新的检查点区域以包含它们。唯一无法完成的操作是创建一个 inode 从未被写入的新文件；在这种情况下，目录项将被移除。除了其他功能外，目录日志还使得提供原子重命名操作变得容易。</p>
+<p>目录操作日志与检查点之间的交互在 Sprite LFS 中引入了额外的同步问题。特别是，每个检查点必须表示目录操作日志与日志中的 inode 和目录块一致的状态。这需要额外的同步以防止在写入检查点时进行目录修改。</p>
+<hr>
+<h2>5. Sprite LFS 的使用经验</h2>
+<p>我们于 1989 年末开始实现 Sprite LFS，到 1990 年中期它已作为 Sprite 网络操作系统的一部分投入运行。自 1990 年秋季以来，它已被用于管理五个不同的磁盘分区，约三十名用户将其用于日常计算。本文描述的所有特性都已在 Sprite LFS 中实现，但前滚尚未安装到生产系统中。生产磁盘使用短检查点间隔（30 秒），并在重启时丢弃最后一个检查点之后的所有信息。</p>
+<p>在开始这个项目时，我们曾担心日志结构文件系统可能比传统文件系统复杂得多。然而实际上，Sprite LFS 并不比 Unix FFS[9] 更复杂：Sprite LFS 在段清理器方面有额外的复杂性，但这被 Unix FFS 所需的位图和布局策略的消除所补偿；此外，Sprite LFS 中的检查点和前滚代码并不比扫描 Unix FFS 磁盘以恢复一致性的 fsck 代码 [15] 更复杂。像 Episode[2] 或 Cedar[3] 这样的日志文件系统可能比 Unix FFS 或 Sprite LFS 都要复杂一些，因为它们同时包含日志和布局代码。</p>
+<p>在日常使用中，Sprite LFS 对用户的感觉与 Sprite 中类似 Unix FFS 的文件系统没有太大不同。原因是当前使用的机器在当前工作负载下还不够快以至于磁盘受限。例如，在修改后的 Andrew 基准测试 [11] 上，Sprite LFS 仅比 SunOS 快 20%（使用第 5.1 节中介绍的配置）。大部分加速归因于 Sprite LFS 中同步写入的消除。即使有 Unix FFS 的同步写入，该基准测试的 CPU 利用率超过 80%，限制了磁盘存储管理变更所能带来的加速。</p>
+<h3>5.1. 微基准测试</h3>
+<p>我们使用一组小型基准测试程序来测量 Sprite LFS 的最佳情况性能，并将其与 SunOS 4.0.3 进行比较（后者的文件系统基于 Unix FFS）。这些基准测试是综合性的，因此不代表实际工作负载，但它们说明了两个文件系统的优势和劣势。两个系统使用的机器是 Sun-4/260（8.7 整数 SPECmarks），配备 32 MB 内存、Sun SCSI3 HBA 和 Wren IV 磁盘（最大传输带宽 1.3 MB/s，平均寻道时间 17.5 毫秒）。对于 LFS 和 SunOS，磁盘均格式化为约 300 MB 可用存储的文件系统。SunOS 使用 8KB 块大小，而 Sprite LFS 使用 4KB 块大小和 1MB 段大小。在每种情况下，系统在测试期间处于多用户运行状态但其他方面空闲。</p>
+<p>在 Sprite LFS 中，基准测试运行期间没有发生清理操作，因此测量结果代表最佳情况性能；有关清理开销的测量，请参见下面的第 5.2 节。</p>
+<p>图 8 显示了一个创建、读取和删除大量小文件的基准测试的结果。Sprite LFS 在该基准测试的创建和删除阶段比 SunOS 快近十倍。Sprite LFS 在回读文件时也更快；这是因为文件以创建时相同的顺序被读取，而日志结构文件系统将文件在日志中密集打包。此外，Sprite LFS 在创建阶段仅使磁盘忙碌 17%，同时使 CPU 饱和。相比之下，SunOS 在创建阶段使磁盘忙碌 85%，即使磁盘的潜在带宽只有约 1.2% 用于新数据。这意味着随着 CPU 变快，Sprite LFS 的性能将再提高 4-6 倍（见图 8(b)）。SunOS 则几乎无法期望任何改善。</p>
+<p>尽管 Sprite 是为大量小文件访问工作负载的高效性而设计的，图 9 显示它也为大文件提供了有竞争力的性能。在所有情况下，Sprite LFS 的写入带宽都高于 SunOS。它在随机写入方面快得多，因为它将随机写入转化为顺序写入日志；在顺序写入方面也更快，因为它将多个块组合成单次大型 I/O，而 SunOS 为每个块执行单独的磁盘操作（较新版本的 SunOS 对写入进行了分组 [16]，因此应具有与 Sprite LFS 等同的性能）。两个系统的读取性能相似，除了在随机写入后顺序读取文件的情况；在这种情况下，Sprite LFS 中的读取需要寻道，因此其性能大幅低于 SunOS。</p>
+<p>图 9 说明了一个事实：日志结构文件系统在磁盘上产生了与传统文件系统不同形式的局部性。传统文件系统通过假设特定的访问模式（文件的顺序读取、使用同一目录中多个文件的倾向等）来实现逻辑局部性；如有必要，它在写入时付出额外代价以按假设的读取模式在磁盘上优化组织信息。相比之下，日志结构文件系统实现的是时间局部性：在相同时间创建或修改的信息将在磁盘上紧密聚集。如果时间局部性与逻辑局部性匹配（如一个被顺序写入然后顺序读取的文件），则日志结构文件系统在大文件上应与传统文件系统具有大致相同的性能。如果时间局部性与逻辑局部性不同，则两个系统将表现不同。Sprite LFS 更高效地处理随机写入，因为它将它们顺序写入磁盘。SunOS 为随机写入付出更多代价以实现逻辑局部性，但随后它更高效地处理顺序重新读取。随机读取在两个系统中的性能大致相同，尽管块的布局方式非常不同。然而，如果非顺序读取与非顺序写入的顺序相同，则 Sprite 将会快得多。</p>
+<h3>5.2. 清理开销</h3>
+<p>前一节的微基准测试结果给出了 Sprite LFS 性能的乐观视图，因为它们不包含任何清理开销（基准测试运行期间的写入代价为 1.0）。为了评估清理的代价和代价 - 收益清理策略的有效性，我们记录了几个月来生产日志结构文件系统的统计数据。测量了五个系统：</p>
+<ul>
+<li><strong>/user6：</strong> Sprite 开发者的主目录。工作负载包括程序开发、文本处理、电子通信和模拟。</li>
+<li><strong>/pcs：</strong> 并行处理和 VLSI 电路设计研究的主目录和项目区。</li>
+<li><strong>/src/kernel：</strong> Sprite 内核的源代码和二进制文件。</li>
+<li><strong>/swap2：</strong> Sprite 客户端工作站交换文件。工作负载为 40 个无盘 Sprite 工作站的虚拟内存后备存储。文件往往大、稀疏且非顺序访问。</li>
+<li><strong>/tmp：</strong> 40 个 Sprite 工作站的临时文件存储区。</li>
+</ul>
+<p><strong>表 2 — 生产文件系统的段清理统计和写入代价</strong></p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>文件系统</th>
+<th>磁盘大小</th>
+<th>平均文件大小</th>
+<th>平均写流量</th>
+<th>磁盘利用率</th>
+<th>清理的段数</th>
+<th>空段比例</th>
+<th>非空段平均利用率</th>
+<th>写入代价</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/user6</td>
+<td>1280 MB</td>
+<td>23.5 KB</td>
+<td>3.2 MB/h</td>
+<td>75%</td>
+<td>10732</td>
+<td>69%</td>
+<td>0.133</td>
+<td>1.4</td>
+</tr>
+<tr>
+<td>/pcs</td>
+<td>990 MB</td>
+<td>10.5 KB</td>
+<td>2.1 MB/h</td>
+<td>63%</td>
+<td>22689</td>
+<td>52%</td>
+<td>0.137</td>
+<td>1.6</td>
+</tr>
+<tr>
+<td>/src/kernel</td>
+<td>1280 MB</td>
+<td>37.5 KB</td>
+<td>4.2 MB/h</td>
+<td>72%</td>
+<td>16975</td>
+<td>83%</td>
+<td>0.122</td>
+<td>1.2</td>
+</tr>
+<tr>
+<td>/tmp</td>
+<td>264 MB</td>
+<td>28.9 KB</td>
+<td>1.7 MB/h</td>
+<td>11%</td>
+<td>2871</td>
+<td>78%</td>
+<td>0.130</td>
+<td>1.3</td>
+</tr>
+<tr>
+<td>/swap2</td>
+<td>309 MB</td>
+<td>68.1 KB</td>
+<td>13.3 MB/h</td>
+<td>65%</td>
+<td>4701</td>
+<td>66%</td>
+<td>0.535</td>
+<td>1.6</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><em>对于每个 Sprite LFS 文件系统，表中列出了磁盘大小、平均文件大小、平均每日写流量、平均磁盘容量利用率、四个月内清理的段总数、被清理时为空的段比例、被清理的非空段的平均利用率、以及测量期间的总体写入代价。这些写入代价数字意味着清理开销将长期写入性能限制在最大顺序写入带宽的约 70%。</em></p>
+<p>表 2 显示了四个月期间清理过程中收集的统计数据。为消除启动效应，我们在文件系统投入使用后等待了数月才开始测量。生产文件系统的行为明显优于第 3 节中模拟的预测。尽管总体磁盘容量利用率范围在 11-75% 之间，但超过一半的被清理段是完全空的。即使是非空段，其利用率也远低于磁盘的平均利用率。总体写入代价范围为 1.2 到 1.6，相比之下相应模拟中的写入代价为 2.5-3。图 10 显示了段利用率的分布，取自 /user6 磁盘的近期快照。</p>
+<p>我们认为 Sprite LFS 中清理代价低于模拟的原因有两个。第一，模拟中的所有文件都只有一个块长。在实践中，存在大量较长的文件，它们倾向于作为一个整体被写入和删除。这导致了单个段内更大的局部性。在最佳情况下，当文件比一个段大得多时，删除该文件将产生一个或多个完全空的段。模拟与现实之间的第二个差异是，模拟的引用模式在热文件组和冷文件组内是均匀分布的。在实践中，存在大量几乎从不被写入的文件（现实中的冷段比模拟中的冷段要冷得多）。日志结构文件系统将把非常冷的文件隔离在段中并永远不清理它们。在模拟中，每个段最终都会接收到修改，因此必须被清理。</p>
+<p>如果第 5.1 节中 Sprite LFS 的测量结果略显乐观，那么本节中的测量结果如果说有什么的话，是偏悲观的。在实践中，很多清理可以在夜间或其他空闲时段执行，使得干净段在活动突发时可用。我们尚未有足够的 Sprite LFS 经验来确定这是否可行。此外，我们预期随着获得经验和调优算法，Sprite LFS 的性能将会改善。例如，我们尚未仔细分析一次清理多少段的策略问题，但我们认为它可能影响系统将热数据与冷数据分离的能力。</p>
+<h3>5.3. 崩溃恢复</h3>
+<p>虽然崩溃恢复代码尚未安装在生产系统上，但该代码运行得足够好，可以对各种崩溃场景进行恢复计时。恢复时间取决于检查点间隔以及正在执行的操作的速率和类型。</p>
+<p><strong>表 3 — 各种崩溃配置的恢复时间</strong></p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>文件大小</th>
+<th>恢复 1 MB 文件数据</th>
+<th>恢复 10 MB 文件数据</th>
+<th>恢复 50 MB 文件数据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 KB</td>
+<td>1 秒</td>
+<td>21 秒</td>
+<td>132 秒</td>
+</tr>
+<tr>
+<td>10 KB</td>
+<td>&lt;1 秒</td>
+<td>3 秒</td>
+<td>17 秒</td>
+</tr>
+<tr>
+<td>100 KB</td>
+<td>&lt;1 秒</td>
+<td>1 秒</td>
+<td>8 秒</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><em>该表显示了恢复一、十和五十兆字节固定大小文件的速度。测量使用的系统与第 5.1 节相同。恢复时间由需要恢复的文件数量主导。</em></p>
+<p>不同的崩溃配置通过运行一个在系统崩溃前创建一、十或五十兆字节固定大小文件的程序来生成。使用了 Sprite LFS 的特殊版本，该版本具有无限检查点间隔且从不将目录更改写入磁盘。在恢复前滚期间，创建的文件必须被添加到 inode 映射中，必须创建目录项，并且必须更新段使用表。</p>
+<p>表 3 显示恢复时间随最后一个检查点和崩溃之间写入的文件数量和大小而变化。恢复时间可以通过限制检查点之间写入的数据量来设定上界。从表 2 中的平均文件大小和每日写流量来看，长达一小时的检查点间隔将导致约一秒的平均恢复时间。使用观察到的最大写入速率 150 MB/小时，最大恢复时间将随检查点间隔长度每 70 秒增加一秒。</p>
+<h3>5.4. Sprite LFS 中的其他开销</h3>
+<p><strong>表 4 — /user6 的磁盘空间和日志带宽使用情况</strong></p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>块类型</th>
+<th>存活数据占比</th>
+<th>日志带宽占比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据块 *</td>
+<td>98.0%</td>
+<td>85.2%</td>
+</tr>
+<tr>
+<td>间接块 *</td>
+<td>1.0%</td>
+<td>1.6%</td>
+</tr>
+<tr>
+<td>Inode 块 *</td>
+<td>0.2%</td>
+<td>2.7%</td>
+</tr>
+<tr>
+<td>Inode 映射</td>
+<td>0.2%</td>
+<td>7.8%</td>
+</tr>
+<tr>
+<td>段使用表 *</td>
+<td>0.0%</td>
+<td>2.1%</td>
+</tr>
+<tr>
+<td>摘要块</td>
+<td>0.6%</td>
+<td>0.5%</td>
+</tr>
+<tr>
+<td>目录操作日志</td>
+<td>0.0%</td>
+<td>0.1%</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><em>对于每种块类型，表中列出了它在磁盘上占用的存活数据百分比和写入日志时消耗的日志带宽百分比。标有 "</em>" 号的块类型在 Unix FFS 中有对应的数据结构。*</p>
+<p>表 4 显示了写入磁盘的各类数据的相对重要性，包括它们在磁盘上占用的存活块比例和在写入日志中的数据占比。磁盘上超过 99% 的存活数据由文件数据块和间接块组成。然而，约 13% 的写入日志的信息由 inode、inode 映射块和段使用表块组成，这些块往往被快速覆写。仅 inode 映射就占了写入日志的所有数据的 7% 以上。我们怀疑这是由于 Sprite LFS 中当前使用的短检查点间隔所致，它迫使元数据比必要的更频繁地写入磁盘。我们预期当安装前滚恢复并增加检查点间隔后，元数据的日志带宽开销将大幅下降。</p>
+<hr>
+<h2>6. 相关工作</h2>
+<p>日志结构文件系统的概念和 Sprite LFS 的设计借鉴了许多不同存储管理系统的思想。具有类日志结构的文件系统出现在若干关于在一次写入介质（write-once media）上构建文件系统的提案中 [17, 18]。除了以仅追加方式写入所有变更外，这些系统还维护类似于 Sprite LFS inode 映射和 inode 的索引信息，以便快速定位和读取文件。它们与 Sprite LFS 的不同之处在于，介质的一次写入特性使得文件系统无需回收日志空间。</p>
+<p>Sprite LFS 中使用的段清理方法的行为很像为编程语言开发的清除式垃圾收集器 [19]。Sprite LFS 中的代价 - 收益段选择和段清理期间块的年龄排序将文件分为不同的代际，类似于分代垃圾收集方案 [20]。这些垃圾收集方案与 Sprite LFS 之间的一个重要区别是，在分代垃圾收集器中可以进行高效的随机访问，而在文件系统中需要顺序访问才能实现高性能。此外，Sprite LFS 可以利用块同一时间只能属于一个文件的事实，使用比编程语言系统中更简单的算法来识别垃圾。</p>
+<p>Sprite LFS 中使用的日志方案类似于数据库系统中开创的方案。几乎所有数据库系统都使用预写日志（write-ahead logging）进行崩溃恢复和实现高性能 [13]，但它们在使用日志的方式上与 Sprite LFS 不同。Sprite LFS 和数据库系统都将日志视为关于磁盘数据状态的最新 " 真相 "。主要区别是数据库系统不将日志作为数据的最终存储库：为此保留了单独的数据区域。这些数据库系统的单独数据区域意味着它们不需要 Sprite LFS 的段清理机制来回收日志空间。数据库系统中日志占用的空间可以在记录的变更被写入最终位置后回收。由于所有读请求都从数据区域处理，日志可以大幅压缩而不影响读性能。通常只有变更的字节被写入数据库日志，而非像 Sprite LFS 中那样写入整个块。</p>
+<p>Sprite LFS 的崩溃恢复机制——使用 " 重做日志 " 进行检查点和前滚——类似于数据库系统和对象仓库中使用的技术 [21]。Sprite LFS 中的实现因日志是数据的最终存储位置而得以简化。Sprite LFS 的恢复无需将操作重做到单独的数据副本，而是确保索引指向日志中数据的最新副本。</p>
+<p>在文件缓存中收集数据并以大型写入写入磁盘类似于数据库系统中的组提交（group commit）概念 [22] 以及主存数据库系统中使用的技术 [23, 24]。</p>
+<hr>
+<h2>7. 结论</h2>
+<p>日志结构文件系统背后的基本原理很简单：在主存的文件缓存中收集大量新数据，然后以单次大型 I/O 将数据写入磁盘，该 I/O 可以利用磁盘的全部带宽。实现这一思想因需要在磁盘上维持大片空闲区域而变得复杂，但我们的模拟分析和 Sprite LFS 的使用经验都表明，通过一种简单的基于代价与收益的策略可以实现低清理开销。尽管我们开发日志结构文件系统是为了支持含有大量小文件的工作负载，但该方法对大文件访问也同样有效。特别是，对于整体创建和整体删除的非常大的文件，基本上完全没有清理开销。</p>
+<p>最终结论是，日志结构文件系统使用磁盘的效率可以比现有文件系统高出一个数量级。这应该使得在 I/O 限制再次威胁计算机系统的可扩展性之前，还能利用几代更快处理器的优势。</p>
+<hr>
+<h2>8. 致谢</h2>
+<p>Diane Greene、Mary Baker、John Hartman、Mike Kupfer、Ken Shirriff 和 Jim Mott-Smith 对本文草稿提供了有益的评论。</p>
+<hr>
+<h2>参考文献</h2>
+<ol>
+<li>
+<p>John K. Ousterhout, Herve Da Costa, David Harrison, John A. Kunze, Mike Kupfer, and James G. Thompson, "A Trace-Driven Analysis of the Unix 4.2 BSD File System," <em>Proceedings of the 10th Symposium on Operating Systems Principles</em>, pp. 15-24, ACM, 1985.</p>
+</li>
+<li>
+<p>Michael L. Kazar, Bruce W. Leverett, Owen T. Anderson, Vasilis Apostolides, Beth A. Bottos, Sailesh Chutani, Craig F. Everhart, W. Anthony Mason, Shu-Tsui Tu, and Edward R. Zayas, "DEcorum File System Architectural Overview," <em>Proceedings of the USENIX 1990 Summer Conference</em>, pp. 151-164, Jun 1990.</p>
+</li>
+<li>
+<p>Robert B. Hagmann, "Reimplementing the Cedar File System Using Logging and Group Commit," <em>Proceedings of the 11th Symposium on Operating Systems Principles</em>, pp. 155-162, Nov 1987.</p>
+</li>
+<li>
+<p>John K. Ousterhout, Andrew R. Cherenson, Frederick Douglis, Michael N. Nelson, and Brent B. Welch, "The Sprite Network Operating System," <em>IEEE Computer</em> 21(2), pp. 23-36, 1988.</p>
+</li>
+<li>
+<p>David A. Patterson, Garth Gibson, and Randy H. Katz, "A Case for Redundant Arrays of Inexpensive Disks (RAID)," <em>ACM SIGMOD 88</em>, pp. 109-116, Jun 1988.</p>
+</li>
+<li>
+<p>Mary G. Baker, John H. Hartman, Michael D. Kupfer, Ken W. Shirriff, and John K. Ousterhout, "Measurements of a Distributed File System," <em>Proceedings of the 13th Symposium on Operating Systems Principles</em>, ACM, Oct 1991.</p>
+</li>
+<li>
+<p>M. Satyanarayanan, "A Study of File Sizes and Functional Lifetimes," <em>Proceedings of the 8th Symposium on Operating Systems Principles</em>, pp. 96-108, ACM, 1981.</p>
+</li>
+<li>
+<p>Edward D. Lazowska, John Zahorjan, David R. Cheriton, and Willy Zwaenepoel, "File Access Performance of Diskless Workstations," <em>Transactions on Computer Systems</em> 4(3), pp. 238-268, Aug 1986.</p>
+</li>
+<li>
+<p>Marshall K. McKusick, "A Fast File System for Unix," <em>Transactions on Computer Systems</em> 2(3), pp. 181-197, ACM, 1984.</p>
+</li>
+<li>
+<p>R. Sandberg, "Design and Implementation of the Sun Network Filesystem," <em>Proceedings of the USENIX 1985 Summer Conference</em>, pp. 119-130, Jun 1985.</p>
+</li>
+<li>
+<p>John K. Ousterhout, "Why Aren't Operating Systems Getting Faster As Fast as Hardware?," <em>Proceedings of the USENIX 1990 Summer Conference</em>, pp. 247-256, Jun 1990.</p>
+</li>
+<li>
+<p>Margo I. Seltzer, Peter M. Chen, and John K. Ousterhout, "Disk Scheduling Revisited," <em>Proceedings of the Winter 1990 USENIX Technical Conference</em>, January 1990.</p>
+</li>
+<li>
+<p>Jim Gray, "Notes on Data Base Operating Systems," in <em>Operating Systems, An Advanced Course</em>, Springer-Verlag, 1979.</p>
+</li>
+<li>
+<p>A. Chang, M. F. Mergen, R. K. Rader, J. A. Roberts, and S. L. Porter, "Evolution of storage facilities in AIX Version 3 for RISC System/6000 processors," <em>IBM Journal of Research and Development</em> 34(1), pp. 105-109, Jan 1990.</p>
+</li>
+<li>
+<p>Marshall Kirk McKusick, William N. Joy, Samuel J. Leffler, and Robert S. Fabry, "Fsck - The UNIX File System Check Program," <em>Unix System Manager's Manual - 4.3 BSD Virtual VAX-11 Version</em>, USENIX, Apr 1986.</p>
+</li>
+<li>
+<p>Larry McVoy and Steve Kleiman, "Extent-like Performance from a UNIX File System," <em>Proceedings of the USENIX 1991 Winter Conference</em>, Jan 1991.</p>
+</li>
+<li>
+<p>D. Reed and Liba Svobodova, "SWALLOW: A Distributed Data Storage System for a Local Network," <em>Local Networks for Computer Communications</em>, pp. 355-373, North-Holland, 1981.</p>
+</li>
+<li>
+<p>Ross S. Finlayson and David R. Cheriton, "Log Files: An Extended File Service Exploiting Write-Once Storage," <em>Proceedings of the 11th Symposium on Operating Systems Principles</em>, pp. 129-148, ACM, Nov 1987.</p>
+</li>
+<li>
+<p>H. G. Baker, "List Processing in Real Time on a Serial Computer," A.I. Working Paper 139, MIT-AI Lab, Boston, MA, April 1977.</p>
+</li>
+<li>
+<p>Henry Lieberman and Carl Hewitt, "A Real-Time Garbage Collector Based on the Lifetimes of Objects," <em>Communications of the ACM</em> 26(6), pp. 419-429, 1983.</p>
+</li>
+<li>
+<p>Brian M. Oki, Barbara H. Liskov, and Robert W. Scheifler, "Reliable Object Storage to Support Atomic Actions," <em>Proceedings of the 10th Symposium on Operating Systems Principles</em>, pp. 147-159, ACM, 1985.</p>
+</li>
+<li>
+<p>David J. DeWitt, Randy H. Katz, Frank Olken, L. D. Shapiro, Mike R. Stonebraker, and David Wood, "Implementation Techniques for Main Memory Database Systems," <em>Proceedings of SIGMOD 1984</em>, pp. 1-8, Jun 1984.</p>
+</li>
+<li>
+<p>Kenneth Salem and Hector Garcia-Molina, "Crash Recovery Mechanisms for Main Storage Database Systems," CS-TR-034-86, Princeton University, Princeton, NJ, 1986.</p>
+</li>
+<li>
+<p>Robert B. Hagmann, "A Crash Recovery Scheme for a Memory-Resident Database System," <em>IEEE Transactions on Computers</em> C-35(9), Sep 1986.</p>
+</li>
+</ol>
+</div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://chenzongyao200127.github.io">Solar1s' Personal Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行 "+diffDay+" 天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.disabled=true;
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","chenzongyao200127/chenzongyao200127.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+
+
+</script>
+<script>MathJax = {tex: {inlineMath: [["$", "$"]]}};</script><script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+</html>

@@ -1,5 +1,16 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Solar1s' Personal Blog</title><link>https://chenzongyao200127.github.io</link><description>Life is not a rat race</description><copyright>Solar1s' Personal Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://chenzongyao200127.github.io</link></image><lastBuildDate>Tue, 28 Apr 2026 10:29:39 +0000</lastBuildDate><managingEditor>Solar1s' Personal Blog</managingEditor><ttl>60</ttl><webMaster>Solar1s' Personal Blog</webMaster><item><title>什么是技术潜力</title><link>https://chenzongyao200127.github.io/post/shen-me-shi-ji-shu-qian-li.html</link><description>真正有技术潜力的年轻人，往往不是 ' 什么都会 ' 的人，而是在某些维度上表现出一种不太寻常的 ' 密度 '。</description><guid isPermaLink="true">https://chenzongyao200127.github.io/post/shen-me-shi-ji-shu-qian-li.html</guid><pubDate>Tue, 28 Apr 2026 10:29:06 +0000</pubDate></item><item><title>OS Papers 经典论文研读</title><link>https://chenzongyao200127.github.io/post/OS%20Papers%20-jing-dian-lun-wen-yan-du.html</link><description>---
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Solar1s' Personal Blog</title><link>https://chenzongyao200127.github.io</link><description>Life is not a rat race</description><copyright>Solar1s' Personal Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://chenzongyao200127.github.io</link></image><lastBuildDate>Tue, 28 Apr 2026 11:33:19 +0000</lastBuildDate><managingEditor>Solar1s' Personal Blog</managingEditor><ttl>60</ttl><webMaster>Solar1s' Personal Blog</webMaster><item><title>Log-Structured File System - 日志结构文件系统的设计与实现</title><link>https://chenzongyao200127.github.io/post/Log-Structured%20File%20System%20-%20-ri-zhi-jie-gou-wen-jian-xi-tong-de-she-ji-yu-shi-xian.html</link><description>**Mendel Rosenblum 和 John K. Ousterhout**
+
+加利福尼亚大学伯克利分校
+电气工程与计算机科学系，计算机科学分部
+Berkeley, CA 94720
+mendel@sprite.berkeley.edu, ouster@sprite.berkeley.edu
+
+---
+
+&gt; The Design and Implementation of a Log-Structured File System (SOSP 1991)
+&gt; 底层命题：当内存越来越大（读操作大多命中缓存），而磁盘寻道时间没有实质改善时，如何彻底消除随机写带来的性能瓶颈？
+&gt; 学习价值（硬件约束驱动的架构范式转移）：LFS 是“识别硬件底层物理约束，并反向重构软件层”的教科书。</description><guid isPermaLink="true">https://chenzongyao200127.github.io/post/Log-Structured%20File%20System%20-%20-ri-zhi-jie-gou-wen-jian-xi-tong-de-she-ji-yu-shi-xian.html</guid><pubDate>Tue, 28 Apr 2026 11:32:46 +0000</pubDate></item><item><title>什么是技术潜力</title><link>https://chenzongyao200127.github.io/post/shen-me-shi-ji-shu-qian-li.html</link><description>真正有技术潜力的年轻人，往往不是 ' 什么都会 ' 的人，而是在某些维度上表现出一种不太寻常的 ' 密度 '。</description><guid isPermaLink="true">https://chenzongyao200127.github.io/post/shen-me-shi-ji-shu-qian-li.html</guid><pubDate>Tue, 28 Apr 2026 10:29:06 +0000</pubDate></item><item><title>OS Papers 经典论文研读</title><link>https://chenzongyao200127.github.io/post/OS%20Papers%20-jing-dian-lun-wen-yan-du.html</link><description>---
 
 ## 第一部分：操作系统的基石与边界重构
 
