@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="> 原文链接：https://abseil.io/fast/hints.html#performance-hints
+
+> 高德纳的这句名言确实困扰过很多人，业界常常把“过早优化是万恶之源”当成系统前期可以随意挥霍性能、堆砌抽象的借口。">
+<meta property="og:title" content="「译」Performance Hints">
+<meta property="og:description" content="> 原文链接：https://abseil.io/fast/hints.html#performance-hints
+
+> 高德纳的这句名言确实困扰过很多人，业界常常把“过早优化是万恶之源”当成系统前期可以随意挥霍性能、堆砌抽象的借口。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://chenzongyao200127.github.io/post/%E3%80%8C-yi-%E3%80%8DPerformance%20Hints.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>「译」Performance Hints</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">「译」Performance Hints</h1>
+<div class="title-right">
+    <a href="https://chenzongyao200127.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/chenzongyao200127/chenzongyao200127.github.io/issues/13" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><blockquote>
+<p>原文链接：<a href="https://abseil.io/fast/hints.html#performance-hints" rel="nofollow">https://abseil.io/fast/hints.html#performance-hints</a></p>
+</blockquote>
+<blockquote>
+<p>高德纳的这句名言确实困扰过很多人，业界常常把“过早优化是万恶之源”当成系统前期可以随意挥霍性能、堆砌抽象的借口。这篇文章最内核的价值，就是把这层窗户纸捅破了：如果一种更快的实现方式并不会增加代码的复杂度和阅读门槛，那它就根本不是“过早优化”，而是工程质量的底线。</p>
+</blockquote>
+<blockquote>
+<p>剥开长文中那些具体的 C++ 特性（如 <code class="notranslate">std::string_view</code> 或 <code class="notranslate">absl::InlinedVector</code>）和 Google 内部库的抽象，Jeff 和 Sanjay 其实在反复向开发者传递几个非常底层的系统第一性原理：</p>
+</blockquote>
+<blockquote>
+<p>机械同理心与物理常识（Mechanical Sympathy）</p>
+<p>性能优化的尽头是硬件的物理实在。 文章中提到的“封底估算（Back-of-the-envelope calculations）”，本质上是要求工程师将 CPU 缓存、内存寻址、分支预测和总线带宽的开销转化为肌肉记忆。长文中大量篇幅讨论的紧凑数据结构、用数组索引代替 64 位指针、批量存储以及使用 Arena 内存池，核心目的只有一个：迎合 CPU 的缓存行（Cache Line）和预取机制。在现代体系结构下，频繁的内存分配和指针的跳跃（Pointer Chasing）是极度昂贵的。让数据在内存中紧凑、连续地排列，让底层硬件顺畅地跑满流水线，往往比纯粹数学意义上的时间复杂度优化更能带来实质性的飞跃。</p>
+</blockquote>
+<blockquote>
+<p>降低边界跨越的摩擦成本</p>
+<p>这集中体现在他们对 API 设计的建议上，比如大力推崇批量接口（Bulk APIs）和视图类型。无论是函数压栈、RPC 跨网络边界，还是互斥锁的获取，跨越系统边界都伴随着巨大的上下文开销。通过批量操作（例如一次加锁处理完所有引用，或者批量查询），可以极大地摊销（Amortize）系统在控制面上的决策成本。系统设计应该遵循极简原则：能一次性批处理完的控制流，就绝对不要让系统去做一万次微小的状态流转。</p>
+</blockquote>
+<blockquote>
+<p>利用非对称性：为常见场景修筑高速公路</p>
+<p>系统运行时的输入和状态从来都不是均匀分布的。文章中强调的“常见情况的快速路径（Fast paths）”就是利用了概率上的非对称性。如果 99% 的数据都是短字符串或单字节，或者绝大多数执行都不会遇到错误，那么就应该为这 99% 的常态修筑一条没有任何额外分配、判断极简的“高速公路”，而把那些繁琐的、需要深层检查的逻辑剥离出去，推迟到冷路径（Cold path）或尾调用中。这同时也是在提醒我们，警惕代码的“过度通用化”。</p>
+</blockquote>
+<blockquote>
+<p>防御性的性能架构（长期主义思维）</p>
+<p>回到最开始关于“过早优化”的讨论。如果我们前期对那些顺手就能写好的细节（比如预留容器容量、避免过度嵌套的 Map、消除无意义的深拷贝）视而不见，系统在经历多轮迭代后，就会陷入一种叫做“扁平性能概况（Flat Profile）”的死局——性能损耗像撒胡椒面一样均匀分布在无数个微小的分配和拷贝中，剖析工具根本找不到一个突出的瓶颈。在不破坏架构简洁性的前提下，保持底线的性能嗅觉，实际上是对系统演进的长期主义负责。这不是在做无用功，而是在防御未来因系统性能全面溃散而不得不进行的推翻重写。</p>
+</blockquote>
+<h1>性能优化建议 (Performance Hints)</h1>
+<blockquote>
+<p>作者：Jeff Dean, Sanjay Ghemawat<br>
+原始版本：2023/07/27，最后更新：2025/12/16</p>
+</blockquote>
+<p>多年来，我们（Jeff 和 Sanjay）在各种代码片段的性能调优上投入了大量精力。自 Google 成立之初，提升软件性能就至关重要，因为这让我们能够为更多用户提供更多服务。我们编写本文档旨在总结我们在进行此类工作时运用的一些通用原则和特定技巧，并尝试挑选具有代表性的源代码变更（Change Lists，简称 CLs）作为具体方法和技巧的示例。尽管下文中的具体建议大多涉及 C++ 类型和 CL，但其通用原则同样适用于其他语言。</p>
+<p>本文档聚焦于单个二进制文件上下文中的通用性能调优，不涵盖分布式系统或机器学习（ML）硬件的性能调优（这些本身就是庞大的领域）。希望这份文档能对大家有所帮助。</p>
+<p>文档中的许多示例都包含演示相关技巧的代码片段。请注意，部分代码片段可能提及 Google 内部代码库的各种抽象。如果我们认为这些示例足够独立，即便不熟悉这些抽象细节也能理解，我们仍会将其收录其中。</p>
+<h2>思考性能的重要性</h2>
+<p>Knuth（高德纳）常被断章取义地引用为“过早优化是万恶之源”。这句话的完整版本是：“在 97% 的情况下，我们要忽略微小的效率提升：过早优化是万恶之源。然而，我们绝不能放弃那关键的 3% 的机会。” 本文档正是关于这关键的 3%。Knuth 还有一段更具说服力的引言：</p>
+<blockquote>
+<p>“从示例 2 到示例 2a 的速度提升仅约 12%，许多人可能会认为这微不足道。当今许多软件工程师的传统观念是忽略细微处的效率；但我认为，这仅仅是对那些实行‘省小钱亏大钱’、无法调试或维护其‘优化后’程序的程序员所犯滥用行为的过度反应。</p>
+<p>在成熟的工程学科中，轻易获得 12% 的改进绝不会被视为微不足道；我相信这一观点同样应在软件工程中占据主导地位。当然，我不会在一个一次性的任务上费心做这种优化，但当问题涉及到编写高质量程序时，我不想局限于那些剥夺我获得这种效率的工具。”</p>
+</blockquote>
+<p>许多人会说：“让我们先用尽可能简单的方式编写代码，等以后能进行性能剖析（Profiling）时再处理性能问题。” 然而，这种方法通常是错误的：</p>
+<ol>
+<li>如果在开发大型系统时无视所有性能问题，最终你会得到一个扁平的性能概况（Flat Profile），即没有明显的热点，因为性能损耗遍布各处。这时要弄清楚从何处着手改进性能将变得非常困难。</li>
+<li>如果你正在开发一个供他人使用的库，遇到性能问题的人很可能是那些无法轻易进行性能改进的人（他们不得不去理解其他团队编写的代码细节，并与这些团队协商性能优化的重要性）。</li>
+<li>当系统处于高负载使用状态时，进行重大更改会更加困难。</li>
+<li>很难判断性能问题是否可以轻易解决，因此我们最终可能会采用昂贵的解决方案，如过度复制或为了处理负载问题而严重过度配置服务资源。</li>
+</ol>
+<p>相反，我们要建议的是：<strong>在编写代码时，如果对代码的可读性或复杂度没有显著影响，请尽量选择更快的替代方案</strong></p>
+<blockquote>
+<p>这段话其实打破了我对 “过早优化是万恶之源” 的教条认识，我一直没有真正理解这句话</p>
+</blockquote>
+<h2>估算 (Estimation)</h2>
+<p>如果你能对自己正在编写的代码的性能重要性建立直觉，你就能做出更明智的决策（例如，以性能为名引入多少额外的复杂度是合理的）。</p>
+<p>以下是编写代码时估算性能的一些技巧：</p>
+<ul>
+<li>是测试代码吗？ 如果是，你主要需要关注算法和数据结构的渐进复杂度。（注：开发周期的耗时也很重要，所以避免编写运行时间过长的测试。）</li>
+<li>是特定于应用程序的代码吗？ 如果是，试着弄清楚这部分代码的性能有多重要。这通常不难：只需区分代码是初始化/设置代码，还是位于热点路径（Hot Paths）上的代码（例如，服务中处理每个请求的代码）通常就足够了。</li>
+<li>是将被许多应用程序使用的库代码吗？这种情况下很难判断它会变得多么敏感。这时，遵循本文档中描述的一些简单技巧就显得尤为重要。例如，如果你需要存储一个通常元素数量很少的向量，请使用 <code class="notranslate">absl::InlinedVector</code> 而不是 <code class="notranslate">std::vector</code>。遵循此类技巧并不难，也不会给系统增加任何非局部的复杂度。而且，如果事实证明你编写的代码最终确实消耗了大量资源，它从一开始就具备较高的性能。当查看性能剖析文件时，也更容易找到下一个关注点。</li>
+</ul>
+<p>在选择具有潜在不同性能特征的选项时，你可以通过依赖<strong>封底计算（Back-of-the-envelope calculations）</strong> 来进行稍深层次的分析。此类计算可以快速给出不同方案的非常粗略的性能估算，其结果可用于舍弃某些方案，而无需实际实现它们。</p>
+<p>估算可以这样进行：</p>
+<ol>
+<li>估算各种类型的底层操作所需的数量，例如磁盘寻道次数、网络往返次数、传输字节数等。</li>
+<li>将每种昂贵操作的数量乘以其粗略成本，并将结果相加。</li>
+<li>上述计算给出了系统在资源使用方面的<strong>成本</strong>。如果你对<strong>延迟</strong>感兴趣，且系统存在并发，部分成本可能会重叠，你需要进行稍微复杂的分析来估算延迟。</li>
+</ol>
+<p>下表列出了一些底层操作及其粗略成本，这可能很有用（该表是 2007 年斯坦福大学演讲表格的更新版本）：</p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>操作类型 (Operation)</th>
+<th>粗略耗时 (Rough Cost)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L1 缓存引用 (L1 cache reference)</td>
+<td>0.5 ns</td>
+</tr>
+<tr>
+<td>L2 缓存引用 (L2 cache reference)</td>
+<td>3 ns</td>
+</tr>
+<tr>
+<td>分支预测错误 (Branch mispredict)</td>
+<td>5 ns</td>
+</tr>
+<tr>
+<td>互斥锁 加锁/解锁 (无竞争)</td>
+<td>15 ns</td>
+</tr>
+<tr>
+<td>主内存引用 (Main memory reference)</td>
+<td>50 ns</td>
+</tr>
+<tr>
+<td>使用 Snappy 压缩 1K 字节</td>
+<td>1,000 ns</td>
+</tr>
+<tr>
+<td>从 SSD 读取 4KB</td>
+<td>20,000 ns</td>
+</tr>
+<tr>
+<td>同一数据中心内的网络往返</td>
+<td>50,000 ns</td>
+</tr>
+<tr>
+<td>从内存顺序读取 1MB</td>
+<td>64,000 ns</td>
+</tr>
+<tr>
+<td>在 100 Gbps 网络上读取 1MB</td>
+<td>100,000 ns</td>
+</tr>
+<tr>
+<td>从 SSD 读取 1MB</td>
+<td>1,000,000 ns</td>
+</tr>
+<tr>
+<td>磁盘寻道 (Disk seek)</td>
+<td>5,000,000 ns</td>
+</tr>
+<tr>
+<td>从磁盘顺序读取 1MB</td>
+<td>10,000,000 ns</td>
+</tr>
+<tr>
+<td>发送数据包 CA-&gt;Netherlands-&gt;CA</td>
+<td>150,000,000 ns</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p>上表包含了基本底层操作的粗略成本。你可能会发现，追踪与你的系统相关的高层操作的估算成本也很有用。例如，你可能想知道 SQL 数据库点查（Point read）的粗略成本、与云服务交互的延迟，或渲染一个简单 HTML 页面所需的时间。如果你不知道不同操作的相关成本，你就无法进行像样的封底计算！</p>
+<h3>示例：对十亿个 4 字节数字进行快速排序的时间</h3>
+<p>作为粗略近似，一个优秀的快速排序算法需要对大小为 $N$ 的数组进行 $\log(N)$ 次遍历。在每次遍历中，数组内容将从内存流式传输到处理器缓存，分区代码将每个元素与枢轴元素（Pivot）进行一次比较。让我们把主要成本加起来：</p>
+<ol>
+<li>
+<p><strong>内存带宽：</strong> 数组占用 4GB（4 字节/数字 $\times$ 10 亿个数字）。假设每核心内存带宽约为 16GB/s。这意味着每次遍历大约需要 0.25 秒。$N$ 约为 $2^{30}$，所以我们需要进行约 30 次遍历，因此内存传输的总成本约为 <strong>7.5 秒</strong>。</p>
+</li>
+<li>
+<p><strong>分支预测错误：</strong> 我们将总共进行 $N \times \log(N)$ 次比较，即约 300 亿次比较。假设其中一半（即 150 亿次）预测错误。乘以每次预测错误 5 ns，我们得到预测错误的成本为 <strong>75 秒</strong>。在此分析中，我们假设正确预测的分支是免费的。</p>
+</li>
+</ol>
+<p>将上述数字相加，我们得到的估算值约为 <strong>82.5 秒</strong>。</p>
+<p>如果有必要，我们可以改进分析以考虑处理器缓存。这种改进可能是不必要的，因为根据上述分析，分支预测错误是主要成本，但作为另一个例子，我们仍在此将其包括在内。假设我们有 32MB 的 L3 缓存，并且从 L3 缓存传输数据到处理器的成本可以忽略不计。L3 缓存可以容纳 个数字，因此最后 22 次遍历可以对驻留在 L3 缓存中的数据进行操作（倒数第 23 次遍历将数据带入 L3 缓存，其余遍历在这些数据上操作）。这将内存传输成本从 7.5 秒（30 次内存传输）减少到 <strong>2.5 秒</strong>（10 次 4GB 内存传输，16GB/s）。</p>
+<h3>示例：生成包含 30 个图像缩略图的网页的时间</h3>
+<p>假设原始图像存储在磁盘上，每个图像大小约为 1MB。让我们比较两种潜在的设计：</p>
+<ol>
+<li><strong>串行设计：</strong> 串行读取 30 个图像的内容并为每个图像生成缩略图。每次读取需要一次寻道 + 一次传输，即寻道 5ms，传输 10ms，每个图像合计 15ms。30 个图像总共需要 <strong>450ms</strong>。</li>
+<li><strong>并行设计：</strong> 假设图像均匀分布在 个磁盘上，进行并行读取。之前的资源使用估算仍然成立，但延迟将大致下降 倍（忽略方差，例如有时候我们会运气不好，一个磁盘上的图像超过 ）。因此，如果我们在拥有数百个磁盘的分布式文件系统上运行，预期延迟将降至约 <strong>15ms</strong>。</li>
+</ol>
+<p>让我们考虑一种变体，其中所有图像都在单个 SSD 上。这将顺序读取性能变为 /图像，总共约 <strong>30 ms</strong>。</p>
+<h2>测量 (Measurement)</h2>
+<p>上一节提供了一些关于在编写代码时如何思考性能的技巧，而不必太担心如何测量选择的性能影响。但是，在你实际开始进行改进，或遇到涉及性能、简洁性等权衡时，你会想要测量或估算潜在的性能收益。能够有效地测量事物是你进行性能相关工作时最想拥有的首要工具。</p>
+<p>顺便提一下，对你不熟悉的代码进行性能剖析（Profiling）也是获得代码库结构及其运行方式一般感知的绝佳方法。检查程序动态调用图中重度参与例程的源代码，可以让你对运行代码时“发生了什么”有一个高层次的认识，这可以建立你在稍显陌生的代码中进行性能改进更改的信心。</p>
+<h3>剖析工具和技巧</h3>
+<p>有许多有用的剖析工具可用。首选工具是 <strong>pprof</strong>，因为它提供了良好的高层性能信息，并且易于在本地和生产环境中运行的代码上使用。如果你需要更详细的性能洞察，也可以尝试 <strong>perf</strong>。</p>
+<blockquote>
+<p>这里提到的 pprof 是什么？</p>
+</blockquote>
+<p>一些剖析技巧：</p>
+<ul>
+<li>构建带有适当调试信息和优化标志的生产二进制文件。</li>
+<li>如果可以，编写一个覆盖你正在改进的代码的微基准测试（Microbenchmark）。微基准测试可以缩短进行性能改进时的周转时间，帮助验证性能改进的影响，并有助于防止未来的性能回退。然而，微基准测试可能存在陷阱，使其不能代表完整的系统性能。</li>
+<li>使用基准测试库来输出性能计数器读数，既为了更高的精度，也为了更深入地了解程序行为。</li>
+<li>锁竞争通常会人为地降低 CPU 使用率。一些互斥锁实现提供了对锁竞争进行剖析的支持。</li>
+<li>对于机器学习性能工作，使用 ML profilers。</li>
+</ul>
+<blockquote>
+<p>先不要盲目猜测代码哪里慢，先运行这个低开销的工具，抓取一个样本，通过图表直观地看到 CPU 时间或内存主要消耗在哪里，然后再进行针对性的优化。</p>
+</blockquote>
+<h3>当剖析结果扁平（Flat）时该怎么办</h3>
+<p>你经常会遇到 CPU 剖析结果是扁平的情况（没有明显的导致缓慢的罪魁祸首）。这通常发生在所有容易摘的果实（Low-hanging fruit）都已被摘完之后。如果你发现自己处于这种情况，请考虑以下建议：</p>
+<ul>
+<li><strong>不要低估许多微小优化的价值！</strong> 在某个子系统中进行二十次独立的 1% 改进通常是完全可能的，并且总体上意味着相当可观的改进（这类工作通常依赖于拥有稳定且高质量的微基准测试）。</li>
+<li><strong>查找调用栈顶端附近的循环</strong>（CPU 剖析的火焰图视图在这里可能会有帮助）。可能循环或其调用的代码可以被重构得更高效。有些代码最初通过循环输入的节点和边来增量构建复杂的图结构，后来改为通过传递整个输入一次性构建图结构。这消除了初始代码中每条边都会发生的一堆内部检查。</li>
+<li><strong>退一步，寻找调用栈更上层的结构性变更</strong>，而不是专注于微优化。<strong>算法改进</strong>部分列出的技术在这样做时可能会有用。</li>
+<li><strong>寻找过度通用的代码</strong>。用定制的或更底层的实现替换它。例如，如果应用程序重复使用正则表达式匹配，而简单的前缀匹配就足够了，请考虑放弃使用正则表达式。</li>
+<li><strong>尝试减少分配次数</strong>：获取分配剖析（Allocation profile），并剔除对分配数量贡献最大的部分。这将产生两个效果：(1) 直接减少在分配器（以及 GC 语言的垃圾回收器）中花费的时间；(2) 通常会减少缓存未命中，因为在长期运行的程序中，每次分配往往会去到不同的缓存行。</li>
+<li><strong>收集其他类型的剖析</strong>，特别是基于硬件性能计数器的剖析。此类剖析可能会指出遇到高缓存未命中率的函数。<strong>剖析工具和技巧</strong>部分描述的技术可能会有帮助。</li>
+</ul>
+<h2>API 设计考量 (API Considerations)</h2>
+<p>下面建议的一些技术需要更改数据结构和函数签名，这可能会对调用者造成破坏。尽量组织代码，使得建议的性能改进可以在封装边界内进行，而不影响公共接口。如果你的<strong>模块较深（Deep Modules）</strong>（通过窄接口访问显著的功能），这将更容易实现。</p>
+<p>广泛使用的 API 面临着添加功能的巨大压力。在添加新功能时要小心，因为这些将限制未来的实现，并为不需要新功能的用户增加不必要的成本。例如，许多 C++ 标准库容器承诺迭代器的稳定性（Iterator stability），这在典型的实现中显著增加了分配次数，即使许多用户并不需要指针稳定性。</p>
+<p>下面列出了一些具体技巧。请仔细权衡性能优势与这些更改引入的任何 API 可用性问题。</p>
+<h3>批量 API (Bulk APIs)</h3>
+<p>提供批量操作以减少昂贵的 API 边界跨越或利用算法改进。</p>
+<ul>
+<li>
+<p><strong>添加批量 <code class="notranslate">MemoryManager::LookupMany</code> 接口。</strong><br>
+除了添加批量接口外，这还简化了新批量变体的签名：事实证明客户端只需要知道是否找到了所有键，因此我们可以返回 <code class="notranslate">bool</code> 而不是 <code class="notranslate">Status</code> 对象。</p>
+</li>
+<li>
+<p><strong>添加批量 <code class="notranslate">ObjectStore::DeleteRefs</code> API 以摊销锁定开销。</strong><br>
+在锁内循环处理每个引用 vs 获取一次锁处理所有引用。</p>
+</li>
+<li>
+<p><strong>使用 Floyd 建堆法 进行高效初始化。</strong><br>
+批量初始化堆可以在 时间内完成，而一次添加一个元素并在每次添加后更新堆属性需要 时间。</p>
+</li>
+</ul>
+<p>有时很难更改调用者以直接使用新的批量 API。在这种情况下，在内部使用批量 API 并缓存结果以供将来的非批量 API 调用使用可能是有益的：</p>
+<ul>
+<li><strong>缓存块解码结果以供将来调用使用。</strong><br>
+每次查找都需要解码整个块的 K 个条目。将解码后的条目存储在缓存中，并在以后的查找中查询缓存。</li>
+</ul>
+<h3>视图类型 (View types)</h3>
+<p>对于函数参数，优先使用视图类型（例如 <code class="notranslate">std::string_view</code>, <code class="notranslate">std::Span&lt;T&gt;</code>, <code class="notranslate">absl::FunctionRef&lt;R(Args…)&gt;</code>），除非数据的所有权正在转移。这些类型减少了复制，并允许调用者选择自己的容器类型（例如，一个调用者可能使用 <code class="notranslate">std::vector</code> 而另一个使用 <code class="notranslate">absl::InlinedVector</code>）。</p>
+<h3>预分配/预计算参数</h3>
+<p>对于频繁调用的例程，有时允许上层调用者传入它们拥有的数据结构或被调用例程需要的、客户端已有的信息是有用的。这可以避免底层例程被迫分配自己的临时数据结构或重新计算已经可用的信息。</p>
+<ul>
+<li><strong>添加 <code class="notranslate">RPC_Stats::RecordRPC</code> 变体，允许客户端传入已可用的 <code class="notranslate">WallTime</code> 值。</strong> 避免在底层重复调用 <code class="notranslate">WallTime_Now()</code>。</li>
+</ul>
+<h3>线程兼容 (Thread-compatible) vs 线程安全 (Thread-safe) 类型</h3>
+<p>类型可以是线程兼容的（外部同步）或线程安全的（内部同步）。大多数通用类型应该是线程兼容的。这样，不需要线程安全的调用者就不必为此付费。</p>
+<ul>
+<li><strong>使类成为线程兼容的，因为调用者已经同步了。</strong> 如果每个方法都加锁，而调用者在外部也持有锁，会导致不必要的开销。</li>
+</ul>
+<p>然而，如果类型的典型用法需要同步，则倾向于将同步移至类型内部。这允许在必要时调整同步机制以提高性能（例如，分片以减少竞争），而不影响调用者。</p>
+<h2>算法改进 (Algorithmic Improvements)</h2>
+<p>性能改进的最关键机会来自算法改进，例如将 $O(N^2)$ 算法变为 $O(N \lg N)$ 或 $O(N)$，避免潜在的指数行为等。</p>
+<p>这些机会在稳定代码中很少见，但在编写新代码时值得关注。</p>
+<ul>
+<li>
+<strong>以逆后序（Reverse post-order）向循环检测结构添加节点。</strong> 避免每条边都进行昂贵的检查。</li>
+<li>
+<strong>用更好的算法替换互斥锁实现中内置的死锁检测系统。</strong> 新算法基于 Pearce 等人的论文，空间复杂度从 $O(|V|^2)$ 降至 $O(|V|+|E|)$，速度提升约 50 倍，且能扩展到数百万个互斥锁。</li>
+<li>
+<strong>用哈希表（$O(1)$ 查找）替换 <code class="notranslate">IntervalMap</code>（$O(\lg N)$ 查找）。</strong> 如果只是为了合并相邻块，哈希表可能足够。</li>
+<li>
+<strong>用哈希表查找（$O(N)$）替换排序列表交集（$O(N \log N)$）。</strong> 检测两个节点是否共享公共源。</li>
+<li>
+<strong>实现良好的哈希函数，使操作为 $O(1)$ 而不是 $O(N)$。</strong> 避免哈希碰撞退化为链表查找。</li>
+</ul>
+<h2>更好的内存表示 (Better memory representation)</h2>
+<p>仔细考虑重要数据结构的内存占用和缓存占用通常可以产生巨大的节省。以下数据结构专注于通过触摸更少的缓存行来支持常见操作。这里的关注点可以 (a) 避免昂贵的缓存未命中 (b) 减少内存总线流量，这不仅可以加速相关程序，还可以加速同一台机器上运行的其他程序。</p>
+<h3>紧凑数据结构 (Compact data structures)</h3>
+<p>对访问频繁或占应用内存很大一部分的数据使用紧凑表示。</p>
+<ul>
+<li><strong>内存布局：</strong> 重新排序字段以减少对齐填充。使用更小的数值类型。</li>
+<li><strong>字段排序：</strong> 将经常一起访问的字段放在一起。将热的只读字段与热的可变字段分开（避免伪共享导致的缓存失效）。将冷数据移到结构体末尾或通过间接访问。</li>
+<li><strong>位/字节级编码：</strong> 仅在数据被封装在经过良好测试的模块内且内存减少显著时才这样做。</li>
+</ul>
+<h3>索引代替指针</h3>
+<p>在现代 64 位机器上，指针占用 64 位。如果是指针密集型数据结构，你可以考虑使用数组 <code class="notranslate">T[]</code> 的整数索引。如果索引数量足够小（32 位或更少），引用不仅更小，而且所有 <code class="notranslate">T[]</code> 元素的存储都是连续的，通常会导致更好的<strong>缓存局部性（Cache Locality）</strong>。</p>
+<h3>批处理存储 (Batched storage)</h3>
+<p>避免为每个存储元素分配单独对象的数据结构（如 C++ 中的 <code class="notranslate">std::map</code>, <code class="notranslate">std::unordered_map</code>）。相反，考虑使用分块或扁平表示将多个元素在内存中紧邻存储的类型（如 <code class="notranslate">std::vector</code>, <code class="notranslate">absl::flat_hash_{map,set}</code>）。</p>
+<h3>内联存储 (Inlined storage)</h3>
+<p>一些容器类型针对存储少量元素进行了优化（如 <code class="notranslate">absl::InlinedVector</code>）。它们避免了元素数量较少时的堆分配。</p>
+<ul>
+<li><strong>警告：</strong> 如果 <code class="notranslate">sizeof(T)</code> 很大，内联存储容器可能不是最佳选择，因为内联后备存储会很大，可能导致栈溢出或对象过大。</li>
+</ul>
+<h3>不必要的嵌套映射</h3>
+<p>有时可以用带有复合键的单层映射替换嵌套映射数据结构。这可以显著降低查找和插入的成本。</p>
+<ul>
+<li><strong>将 <code class="notranslate">btree&lt;a,btree&lt;b,c&gt;&gt;</code> 转换为 <code class="notranslate">btree&lt;pair&lt;a,b&gt;,c&gt;</code>。</strong></li>
+<li><strong>警告：</strong> 如果第一层映射的键很大，或者需要利用第一层键的共享结构，嵌套映射可能更好。</li>
+</ul>
+<h3>区域内存 (Arenas)</h3>
+<p>Arena 可以帮助减少内存分配成本，并且具有将独立分配的项目紧挨着打包在一起的好处（通常在更少的缓存行中），并消除大多数析构成本。对于具有许多子对象的复杂数据结构最有效。</p>
+<h3>数组代替映射 / 位向量代替集合</h3>
+<ul>
+<li>如果映射的域很小或者是枚举，使用数组代替 <code class="notranslate">flat_map</code>。</li>
+<li>如果集合的域可以由小整数表示，使用位向量（<code class="notranslate">InlinedBitVector</code>）代替集合。集合操作（并集、交集）可以变为高效的位运算。</li>
+</ul>
+<h2>减少分配 (Reduce allocations)</h2>
+<p>内存分配增加成本：</p>
+<ol>
+<li>增加在分配器中花费的时间。</li>
+<li>新分配的对象可能需要昂贵的初始化，以及不再需要时相应的昂贵销毁。</li>
+<li>每次分配往往位于新的缓存行上，因此分散在许多独立分配上的数据将比分散在较少分配上的数据具有更大的缓存占用。</li>
+</ol>
+<h3>避免不必要的分配</h3>
+<ul>
+<li><strong>Lazy initialization:</strong> 仅在需要时分配。</li>
+<li><strong>使用静态分配的零向量而不是分配并填充零。</strong></li>
+<li><strong>优先选择栈分配而不是堆分配</strong>（当对象生命周期受限于作用域时）。</li>
+</ul>
+<h3>调整容器大小或预留 (Resize or reserve containers)</h3>
+<p>当已知向量（或其他容器）的最大或预期最大大小时，预先调整容器后备存储的大小（例如，使用 <code class="notranslate">reserve</code>）。</p>
+<ul>
+<li><strong>警告：</strong> 不要使用 <code class="notranslate">resize</code> 或 <code class="notranslate">reserve</code> 每次增长一个元素，这可能导致二次方行为。</li>
+</ul>
+<h3>尽可能避免复制</h3>
+<ul>
+<li><strong>优先移动 (Move) 而非复制 (Copy)。</strong></li>
+<li>如果生命周期允许，在临时数据结构中存储指针或索引而不是对象的副本。</li>
+<li><strong>避免在通过 gRPC 接收张量时进行额外复制。</strong></li>
+<li>**使用 <code class="notranslate">std::sort</code> 代替 <code class="notranslate">std::stable_sort**</code>（如果不需要稳定性），避免内部复制。</li>
+</ul>
+<h3>重用临时对象</h3>
+<p>将在循环内声明的容器或对象提升到循环外，以实现跨迭代重用，避免重复的构造/析构/调整大小。</p>
+<ul>
+<li><strong>将变量定义提升到循环外。</strong> <code class="notranslate">protobuf</code> 消息变量特别适合这样做，因为它们会保留已分配的内存。</li>
+<li><strong>重复序列化到同一个 <code class="notranslate">std::string</code>。</strong></li>
+</ul>
+<h2>避免不必要的工作 (Avoid unnecessary work)</h2>
+<h3>常见情况的快速路径 (Fast paths for common cases)</h3>
+<p>代码通常编写为覆盖所有情况，但某些子集比其他情况更简单且更常见。</p>
+<ul>
+<li><strong>使快速路径覆盖更多常见情况。</strong> 例如，处理尾部单个 ASCII 字节，而不仅仅是 4 字节倍数。</li>
+<li><strong><code class="notranslate">InlinedVector</code> 的更简单快速路径。</strong></li>
+<li><strong>Varint 解析器的快速路径：</strong> 专门处理 1 字节的情况。</li>
+<li><strong>如果在 RPC 统计中没有发生错误，跳过大量工作。</strong></li>
+<li><strong>在指纹识别完整字符串之前，先对字符串的第一个字节进行数组查找。</strong> 过滤器模式。</li>
+</ul>
+<h3>预先计算昂贵的信息 (Precompute expensive information)</h3>
+<ul>
+<li><strong>预计算 TensorFlow 图执行节点属性。</strong></li>
+<li><strong>预计算 256 元素数组并在三元组初始化期间使用。</strong></li>
+<li><strong>通用建议：</strong> 在模块边界检查格式错误的输入，而不是在内部重复检查。</li>
+</ul>
+<h3>将昂贵的计算移出循环</h3>
+<ul>
+<li><strong>将边界计算移出循环。</strong></li>
+</ul>
+<h3>延迟昂贵的计算 (Defer expensive computation)</h3>
+<ul>
+<li><strong>直到需要时才调用 <code class="notranslate">GetSubSharding</code>。</strong></li>
+<li><strong>不要急切地更新统计信息；按需计算。</strong></li>
+</ul>
+<h3>特化代码 (Specialize code)</h3>
+<p>特定的性能敏感调用点可能不需要通用库提供的全部通用性。</p>
+<ul>
+<li><strong>Histogram 类的自定义打印代码比 <code class="notranslate">sprintf</code> 快 4 倍。</strong></li>
+<li><strong>为 <code class="notranslate">VLOG(1)</code>, <code class="notranslate">VLOG(2)</code> 等添加特化</strong>，以提高速度并减小代码体积。</li>
+<li><strong>尽可能用简单的前缀匹配替换 RE2 调用。</strong></li>
+<li><strong>使用 <code class="notranslate">StrCat</code> 而不是 <code class="notranslate">StringPrintf</code> 来格式化 IP 地址。</strong></li>
+</ul>
+<h3>使用缓存避免重复工作</h3>
+<ul>
+<li><strong>基于大型序列化 proto 的预计算指纹进行缓存。</strong></li>
+</ul>
+<h3>让编译器的工作更轻松</h3>
+<ul>
+<li><strong>避免在热点函数中进行函数调用</strong>（允许编译器避免栈帧设置成本）。</li>
+<li><strong>将慢路径代码移至单独的尾调用函数中。</strong></li>
+<li><strong>在使用前将少量数据复制到局部变量中。</strong> 这可以让编译器假设没有与其他数据的别名（Aliasing），从而可能改善自动向量化和寄存器分配。</li>
+<li><strong>手动展开非常热的循环</strong>（例如 CRC 计算）。</li>
+</ul>
+<h3>减少统计收集成本</h3>
+<p>平衡统计信息的效用与维护信息的成本。</p>
+<ul>
+<li><strong>完全丢弃无用的统计信息。</strong></li>
+<li><strong>采样 (Sampling):</strong> 仅维护样本的统计信息。</li>
+<li><strong>降低采样率并加快采样决策。</strong></li>
+</ul>
+<h3>避免在热点代码路径上记录日志</h3>
+<p>即使是未启用的日志语句也可能有成本（加载和比较）。</p>
+<ul>
+<li><strong>从内存分配器的核心中移除日志记录。</strong></li>
+<li><strong>在嵌套循环外预先计算日志记录是否启用。</strong></li>
+</ul>
+<h2>代码体积考量 (Code size considerations)</h2>
+<p>大的代码体积意味着更长的编译和链接时间、臃肿的二进制文件、更多的内存使用、更大的指令缓存（icache）压力。</p>
+<ul>
+<li>
+<p><strong>削减通常内联的代码：</strong> 广泛调用的函数结合内联会对代码大小产生巨大影响。将慢路径代码移到非内联函数中。</p>
+</li>
+<li>
+<p><strong>谨慎内联：</strong> 内联有时会增加代码大小而没有相应的性能回报。</p>
+</li>
+<li>
+<p><strong>减少 <code class="notranslate">absl::flat_hash_set/map</code> 代码大小：</strong> 提取不依赖于特定哈希表类型的代码到公共（非内联）函数中。</p>
+</li>
+<li>
+<p><strong>减少模板实例化：</strong></p>
+</li>
+<li>
+<p>将模板参数替换为常规参数（如果运行时检查成本低）。</p>
+</li>
+<li>
+<p>将庞大的代码从模板构造函数移动到非模板共享基类构造函数。</p>
+</li>
+<li>
+<p><strong>减少容器操作：</strong> 将一系列地图插入调用转换为单个批量插入操作。</p>
+</li>
+</ul>
+<h2>并行化和同步 (Parallelization and synchronization)</h2>
+<h3>利用并行性</h3>
+<p>现代机器有许多核心。通过并行化可以更快地完成昂贵的工作。</p>
+<ul>
+<li><strong>四路并行化将令牌编码速率提高约 3.6 倍。</strong></li>
+<li><strong>并行化将解码性能提高 5 倍。</strong></li>
+<li><strong>警告：</strong> 应仔细测量对系统性能的影响——如果没有空闲 CPU，或者内存带宽饱和，并行化可能无济于事，甚至有害。</li>
+</ul>
+<h3>摊销锁获取 (Amortize lock acquisition)</h3>
+<ul>
+<li><strong>获取一次锁释放整个查询节点树，而不是为树中的每个节点重新获取锁。</strong></li>
+</ul>
+<h3>保持临界区简短</h3>
+<p>避免在临界区内进行昂贵的工作（RPC、文件访问）。</p>
+<ul>
+<li><strong>减少临界区中接触的缓存行数。</strong></li>
+<li><strong>避免在持有互斥锁时进行 RPC。</strong></li>
+</ul>
+<h3>通过分片减少竞争 (Reduce contention by sharding)</h3>
+<ul>
+<li><strong>将缓存分片 16 路，在多线程负载下吞吐量提高约 2 倍。</strong></li>
+<li><strong>使用并发哈希映射实现。</strong></li>
+<li><strong>注意：</strong> 确保分片选择信息与哈希表内部使用的哈希值不冲突，以避免偏斜。</li>
+</ul>
+<h3>减少伪共享 (Reduce false sharing)</h3>
+<p>如果不同的线程访问不同的可变数据，请考虑将不同的数据项放在不同的缓存行上（例如，使用 <code class="notranslate">alignas</code>）。</p>
+<ul>
+<li><strong>将常用的可变字段与其他字段隔离在不同的缓存行中。</strong></li>
+</ul>
+<h3>考虑无锁方法 (Consider lock-free approaches)</h3>
+<ul>
+<li><strong>使用无锁映射管理 RPC 通道缓存。</strong></li>
+<li><strong>使用固定词典 + 无锁哈希映射加速 <code class="notranslate">IsValidTokenId</code>。</strong></li>
+</ul>
+<h2>Protocol Buffer 建议</h2>
+<p>Protobuf 很方便，但有性能成本。将数据从 Protobuf 转换为 C++ <code class="notranslate">std::vector</code> 可能会有 20 倍的加速。</p>
+<ul>
+<li><strong>不要不必要地使用 protobufs。</strong> 如果数据从未被序列化或解析，不要使用它。</li>
+<li><strong>避免不必要的消息层次结构。</strong> 扁平化结构通常更好。</li>
+<li><strong>为频繁出现的字段使用小的字段编号。</strong> 1-15 占用 1 字节。</li>
+<li><strong>仔细选择整数类型。</strong> <code class="notranslate">int32/64</code> vs <code class="notranslate">fixed32/64</code> vs <code class="notranslate">sint32/64</code>。</li>
+<li><strong>对于 proto2，使用 <code class="notranslate">[packed=true]</code>。</strong> proto3 默认已打包。</li>
+<li><strong>对于二进制数据和通过网络传输的大值，使用 <code class="notranslate">bytes</code> 而不是 <code class="notranslate">string</code>。</strong> 避免 UTF-8 验证。</li>
+<li><strong>考虑 <code class="notranslate">string_type = VIEW</code> 以避免复制。</strong> 使用 <code class="notranslate">absl::string_view</code> 引用原始后备字符串。</li>
+<li><strong>考虑对大字段使用 <code class="notranslate">Cord</code> (<code class="notranslate">[ctype = CORD]</code>) 以减少复制成本。</strong></li>
+<li><strong>在 C++ 代码中使用 protobuf arenas。</strong> 摊销分配成本。</li>
+<li><strong>保持 .proto 文件小。</strong> 避免巨大的依赖。</li>
+</ul>
+<h2>C++ 特定建议</h2>
+<ul>
+<li><strong><code class="notranslate">absl::flat_hash_map</code> (Swiss Tables):</strong> 通常优于 <code class="notranslate">std::map</code> 和 <code class="notranslate">std::unordered_map</code>。利用 SIMD 指令并行比较哈希值。</li>
+<li><strong><code class="notranslate">absl::btree_map</code>/<code class="notranslate">set</code>:</strong> 缓存效率通常优于 <code class="notranslate">std::map</code>。</li>
+<li><strong><code class="notranslate">util::bitmap::InlinedBitVector</code>:</strong> 优于 <code class="notranslate">std::vector&lt;bool&gt;</code>。</li>
+<li><strong><code class="notranslate">absl::InlinedVector</code>:</strong> 小向量优化。</li>
+<li><strong><code class="notranslate">gtl::small_map</code> / <code class="notranslate">small_ordered_set</code>:</strong> 针对小数据集优化的容器。</li>
+<li><strong>限制 <code class="notranslate">absl::Status</code> 和 <code class="notranslate">absl::StatusOr</code> 的使用:</strong> 在热点路径上避免非必要的 Status 对象创建。</li>
+<li><strong>添加 <code class="notranslate">NoStatus</code> 版本的遍历函数。</strong></li>
+<li><strong>从 RPC 热点路径中移除 <code class="notranslate">StatusOr</code>。</strong></li>
+</ul>
+<h2>批量操作 (Bulk operations)</h2>
+<ul>
+<li><strong><code class="notranslate">absl::flat_hash_map</code> 使用单条 SIMD 指令从一组键中比较每个键的一个哈希字节。</strong></li>
+<li><strong>一次性处理许多字节并进行修正，而不是每个字节都检查该做什么。</strong> 循环展开和批处理。</li>
+<li><strong>解码一组整数（例如 4 个）比一次解码一个更快。</strong></li>
+</ul>
+<h2>扩展阅读</h2>
+<ul>
+<li><strong>Optimizing software in C++</strong> by Agner Fog.</li>
+<li><strong>Understanding Software Dynamics</strong> by Richard L. Sites.</li>
+<li><strong>Computer Architecture: A Quantitative Approach</strong> by Hennessy and Patterson.</li>
+</ul>
+</div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://chenzongyao200127.github.io">Solar1s' Personal Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行 "+diffDay+" 天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.disabled=true;
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","chenzongyao200127/chenzongyao200127.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+
+
+</script>
+<script>MathJax = {tex: {inlineMath: [["$", "$"]]}};</script><script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+</html>
