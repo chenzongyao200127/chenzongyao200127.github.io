@@ -221,6 +221,7 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 <hr>
 <h2>4. 基于 Lua 的内核脚本化环境</h2>
 <p>我们为内核脚本化设计的编程与执行环境由四个基本组件构成：正确嵌入内核的 Lua 解释器，用于执行 Lua 脚本；programming interface（编程接口），供内核开发者使其子系统支持脚本化；user interface（用户接口），用于向内核嵌入的 Lua 解释器加载和运行脚本；以及 Lua bindings（Lua 绑定），用于在内核与用户自定义脚本之间共享函数和数据结构。图 3 概述了该环境的架构与运行方式。</p>
+<p>![[Pasted image 20260429202724.png]]</p>
 <p><strong>图 3.</strong> 基于 Lua 的内核脚本化架构与运行方式</p>
 <h3>4.1 运行概述</h3>
 <p>让我们以第 2.1 节中讨论的 CPUfreq 子系统的脚本化扩展为例。假设用户希望激活图 1 所示的 CPU 频率控制器。为此，她需要将该脚本加载到内核嵌入的 Lua 解释器中。为加载脚本，她使用用户接口（UI）提供的命令行工具，该工具允许她与 Lua 解释器进行动态交互。</p>
