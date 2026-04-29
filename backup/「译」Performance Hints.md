@@ -426,4 +426,4 @@ Protobuf 很方便，但有性能成本。将数据从 Protobuf 转换为 C++ `s
 * **Understanding Software Dynamics** by Richard L. Sites.
 * **Computer Architecture: A Quantitative Approach** by Hennessy and Patterson.
 
-<!-- obsidian-publish-source: Performance Optimization 性能优化/「译」Performance Hints/「译」Performance Hints.md -->
+<!-- obsidian-publish-source: Performance Optimization 性能优化/Performance Hints/「译」Performance Hints.md -->
