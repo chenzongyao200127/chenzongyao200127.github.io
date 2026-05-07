@@ -1,5 +1,89 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Solar1s' Personal Blog</title><link>https://chenzongyao200127.github.io</link><description>Life is not a rat race</description><copyright>Solar1s' Personal Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://chenzongyao200127.github.io</link></image><lastBuildDate>Wed, 29 Apr 2026 02:42:29 +0000</lastBuildDate><managingEditor>Solar1s' Personal Blog</managingEditor><ttl>60</ttl><webMaster>Solar1s' Personal Blog</webMaster><item><title>「译」Performance Hints</title><link>https://chenzongyao200127.github.io/post/%E3%80%8C-yi-%E3%80%8DPerformance%20Hints.html</link><description>&gt; 原文链接：https://abseil.io/fast/hints.html#performance-hints
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Solar1s' Personal Blog</title><link>https://chenzongyao200127.github.io</link><description>Life is not a rat race</description><copyright>Solar1s' Personal Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://chenzongyao200127.github.io</link></image><lastBuildDate>Thu, 07 May 2026 08:52:11 +0000</lastBuildDate><managingEditor>Solar1s' Personal Blog</managingEditor><ttl>60</ttl><webMaster>Solar1s' Personal Blog</webMaster><item><title>Lua-LSM - Scriptable Security Policies in the Linux Kernel</title><link>https://chenzongyao200127.github.io/post/Lua-LSM%20-%20Scriptable%20Security%20Policies%20in%20the%20Linux%20Kernel.html</link><description>LSM (Linux Security Module) has been part of the kernel since 2.6. It's the framework behind SELinux, AppArmor, and Yama — hooks scattered across critical paths like file access, credential changes, and socket creation, giving security modules a chance to say 'no' before something happens.
+
+The catch is that writing an LSM module has always meant writing C, compiling it into the kernel, and living with the fact that you can't unload it. Every step has friction.
+
+Lua-LSM removes most of that friction. You write a Lua script that returns a table of hook callbacks, push it into `/sys/kernel/security/lua/register`, and the kernel's embedded Lua engine compiles it, validates it, and attaches it to the relevant hooks. It runs in a sandbox. If you want it gone, you echo the module name into `unregister`. The whole cycle — from idea to enforcement to removal — happens without a reboot.
+
+## What it looks like
+
+Here's a complete policy that limits `/etc/shadow` to three opens, then blocks all further access regardless of privilege:
+
+```lua
+local kernel = require('kernel')
+
+local function file_post_open(file, mask)
+    local path = file:path()
+    if path == '/etc/shadow' then
+        local n = shared.dogs:incr('count')
+        if n &gt; 3 then
+            kernel.printk(string.format('shadow_protect: %s deny %s',
+                          current:comm(), path))
+            return false
+        end
+    end
+end
+
+return {
+    name = 'shadow_protect',
+    file_post_open = file_post_open
+}
+```
+
+```shell
+cat shadow_protect.lua &gt; /sys/kernel/security/lua/register
+```
+
+That's it. Root gets denied too. `echo 'shadow_protect' &gt; …/unregister` to remove it.
+
+## Where this actually matters: CVE-2026-31431
+
+The abstract use case for Lua-LSM is 'hot-load security logic into the kernel.' The concrete one is what happens when a CVE drops and you're staring at a multi-week window before the patch reaches your fleet.
+
+CVE-2026-31431 ('Copy Fail') is a local privilege escalation disclosed in early 2026. The bug was introduced in 2017 during a performance optimization in `algif_aead` — the kernel crypto subsystem's AEAD socket interface. Under specific conditions, `splice()` on an `AF_ALG` socket can route page-cache pages to a writable kernel destination. The result is deterministic arbitrary file writes from an unprivileged user. No race, no ASLR bypass needed. A few seconds to root.
+
+In multi-tenant environments it's worse — the page cache is host-wide. One compromised container means every container's isolation is gone.
+
+The patch pipeline for something like this is not fast. Backport to LTS, distro QA, staged rollout. Weeks in the best case. The PoC was circulating before patches landed.
+
+## 79 bytes
+
+The entire exploit chain starts with `socket(AF_ALG, …)`. If that call fails, nothing else in the exploit works. So:
+
+```lua
+return{name='cf',socket_create=function(f) if f==38 then return false end end}
+```
+
+That's 79 bytes. `AF_ALG` is address family 38. The function hooks `socket_create`, checks the family, returns false. The kernel refuses the socket. Exploit dead at step one.
+
+```bash
+echo 'return{name='cf',socket_create=function(f) if f==38 then return false end end}' \
+  &gt; /sys/kernel/security/lua/register
+```
+
+One command. No compilation, no signing, no reboot. When the real patch arrives, `echo 'cf' &gt; …/unregister` and you're back to normal.
+
+The overhead is one integer comparison per `socket()` call — well below the noise floor of the syscall itself.
+
+## What this is and isn't
+
+Lua-LSM is not a replacement for SELinux or AppArmor. It doesn't ship with a policy language, a label system, or a type enforcement engine. It's a lower-level primitive: a way to get custom logic onto LSM hooks with minimal ceremony.
+
+The sweet spot is reactive defense — something breaks, you need a mitigation now, and you'd rather write 3 lines of Lua than mass-deploy a kernel module. It's also useful for auditing (log who touches what, with full hook context), fine-grained access control that doesn't warrant a full MAC policy, and experimentation with LSM semantics without the compile-test-reboot cycle.
+
+## Current status
+
+Lua-LSM is open source under the OpenAnolis community. The code lives in `security/lua/` in the ANCK (Alibaba Cloud Kernel) 6.6 tree. It's merged into the development branch but hasn't shipped in a formal release yet — you can build from source today, but production use should wait for the release.
+
+We went public now because CVE-2026-31431 happened to be the perfect demonstration of the design philosophy: defense doesn't need to be more complex than the attack. Sometimes it just needs to be in the right place.
+
+## Links
+
+- Source: https://gitee.com/anolis/cloud-kernel (`security/lua/`)
+- Docs: https://github.com/openanolis/lua-lsm-kernel/wiki
+- Contributions welcome — whether that's code, bug reports, or just useful policy scripts.
+
+&lt;!-- obsidian-publish-source: System Security 系统安全团队/「内部」lua-lsm/对外宣发/外文社区/HackNews/Lua-LSM - Scriptable Security Policies in the Linux Kernel.md --&gt;。</description><guid isPermaLink="true">https://chenzongyao200127.github.io/post/Lua-LSM%20-%20Scriptable%20Security%20Policies%20in%20the%20Linux%20Kernel.html</guid><pubDate>Thu, 07 May 2026 08:51:42 +0000</pubDate></item><item><title>「译」Performance Hints</title><link>https://chenzongyao200127.github.io/post/%E3%80%8C-yi-%E3%80%8DPerformance%20Hints.html</link><description>&gt; 原文链接：https://abseil.io/fast/hints.html#performance-hints
 
 &gt; 高德纳的这句名言确实困扰过很多人，业界常常把“过早优化是万恶之源”当成系统前期可以随意挥霍性能、堆砌抽象的借口。</description><guid isPermaLink="true">https://chenzongyao200127.github.io/post/%E3%80%8C-yi-%E3%80%8DPerformance%20Hints.html</guid><pubDate>Wed, 29 Apr 2026 02:41:55 +0000</pubDate></item><item><title>Komodo 利用验证将安全飞地硬件与软件解耦</title><link>https://chenzongyao200127.github.io/post/Komodo%20-li-yong-yan-zheng-jiang-an-quan-fei-di-ying-jian-yu-ruan-jian-jie-ou.html</link><description>**Andrew Ferraiuolo**（康奈尔大学）
 **Andrew Baumann**（微软研究院）
