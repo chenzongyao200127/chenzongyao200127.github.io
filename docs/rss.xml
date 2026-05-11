@@ -1,5 +1,17 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Solar1s' Personal Blog</title><link>https://chenzongyao200127.github.io</link><description>Life is not a rat race</description><copyright>Solar1s' Personal Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://chenzongyao200127.github.io</link></image><lastBuildDate>Mon, 11 May 2026 11:18:27 +0000</lastBuildDate><managingEditor>Solar1s' Personal Blog</managingEditor><ttl>60</ttl><webMaster>Solar1s' Personal Blog</webMaster><item><title>00 「译」SEV-ES 白皮书</title><link>https://chenzongyao200127.github.io/post/00%20%E3%80%8C-yi-%E3%80%8DSEV-ES%20-bai-pi-shu.html</link><description>&gt; https://docs.amd.com/v/u/en-US/Protecting-VM-Register-State-with-SEV-ES
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Solar1s' Personal Blog</title><link>https://chenzongyao200127.github.io</link><description>Life is not a rat race</description><copyright>Solar1s' Personal Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://github.githubassets.com/favicons/favicon.svg</url><title>avatar</title><link>https://chenzongyao200127.github.io</link></image><lastBuildDate>Mon, 11 May 2026 12:39:49 +0000</lastBuildDate><managingEditor>Solar1s' Personal Blog</managingEditor><ttl>60</ttl><webMaster>Solar1s' Personal Blog</webMaster><item><title>云端硬件虚拟机隔离</title><link>https://chenzongyao200127.github.io/post/yun-duan-ying-jian-xu-ni-ji-ge-li.html</link><description>## 云端硬件虚拟机隔离
+
+**利用 AMD SEV-SNP 技术实现机密计算**
+
+**作者：David Kaplan**
+
+&gt; ACM Queue, 第 21 卷, 第 4 期, 2023 年 9 月
+&gt; DOI: 10.1145/3623392 (Queue) / 10.1145/3624576 (CACM)
+&gt; 转载于 Communications of the ACM, 第 67 卷, 第 1 期, 2024 年 1 月
+
+---
+
+当你租下一间公寓时，你有理由期待一定程度的隐私。</description><guid isPermaLink="true">https://chenzongyao200127.github.io/post/yun-duan-ying-jian-xu-ni-ji-ge-li.html</guid><pubDate>Mon, 11 May 2026 12:39:14 +0000</pubDate></item><item><title>00 「译」SEV-ES 白皮书</title><link>https://chenzongyao200127.github.io/post/00%20%E3%80%8C-yi-%E3%80%8DSEV-ES%20-bai-pi-shu.html</link><description>&gt; https://docs.amd.com/v/u/en-US/Protecting-VM-Register-State-with-SEV-ES
 &gt; [AMD Secure Encrypted Virtualization (SEV) \| AMD](https://www.amd.com/en/developer/sev.html)
 
 ![[Pasted image 20260306173420.png]]

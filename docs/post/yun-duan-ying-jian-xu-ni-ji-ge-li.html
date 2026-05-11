@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="## 云端硬件虚拟机隔离
+
+**利用 AMD SEV-SNP 技术实现机密计算**
+
+**作者：David Kaplan**
+
+> ACM Queue, 第 21 卷, 第 4 期, 2023 年 9 月
+> DOI: 10.1145/3623392 (Queue) / 10.1145/3624576 (CACM)
+> 转载于 Communications of the ACM, 第 67 卷, 第 1 期, 2024 年 1 月
+
+---
+
+当你租下一间公寓时，你有理由期待一定程度的隐私。">
+<meta property="og:title" content="云端硬件虚拟机隔离">
+<meta property="og:description" content="## 云端硬件虚拟机隔离
+
+**利用 AMD SEV-SNP 技术实现机密计算**
+
+**作者：David Kaplan**
+
+> ACM Queue, 第 21 卷, 第 4 期, 2023 年 9 月
+> DOI: 10.1145/3623392 (Queue) / 10.1145/3624576 (CACM)
+> 转载于 Communications of the ACM, 第 67 卷, 第 1 期, 2024 年 1 月
+
+---
+
+当你租下一间公寓时，你有理由期待一定程度的隐私。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://chenzongyao200127.github.io/post/yun-duan-ying-jian-xu-ni-ji-ge-li.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>云端硬件虚拟机隔离</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">云端硬件虚拟机隔离</h1>
+<div class="title-right">
+    <a href="https://chenzongyao200127.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/chenzongyao200127/chenzongyao200127.github.io/issues/16" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><h2>云端硬件虚拟机隔离</h2>
+<p><strong>利用 AMD SEV-SNP 技术实现机密计算</strong></p>
+<p><strong>作者：David Kaplan</strong></p>
+<blockquote>
+<p>ACM Queue, 第 21 卷, 第 4 期, 2023 年 9 月<br>
+DOI: 10.1145/3623392 (Queue) / 10.1145/3624576 (CACM)<br>
+转载于 Communications of the ACM, 第 67 卷, 第 1 期, 2024 年 1 月</p>
+</blockquote>
+<hr>
+<p>当你租下一间公寓时，你有理由期待一定程度的隐私。房东提供住所，你支付租金，而你不会指望房东偷偷翻看你的东西、在你卧室里装摄像头之类的。那么，当你在云端租用一台虚拟机（VM）时，你的期望难道应该有所不同吗？</p>
+<p>公有云提供了一项重要的服务——以付费方式提供计算能力。虽然云服务提供商理应尽最大努力保持你的数据隔离，尤其是与其他租户之间的隔离，但从硬件层面来说，通常并没有任何机制能够将你的所有数据真正与服务提供商自身隔离开来。网络加密和磁盘加密等标准技术可以分别保护传输中的数据（data-in-transit）和静态数据（data-at-rest），但它们无法保护正在被主动处理的数据（即 " 使用中的数据 "，data-in-use）。云提供商软件中的一个漏洞、一名恶意内部人员，或一次意外的崩溃转储，都可能以通常难以察觉的方式暴露你的私有数据。这些风险让许多行业对迁移到云端望而却步……直到现在，一类名为 " 机密计算 "（Confidential Computing）的新技术的出现改变了这一切。</p>
+<h3>面向虚拟机的机密计算</h3>
+<p>机密计算 [16] 是一个通用术语，指的是一类旨在保护工作负载（如虚拟机）不受所有其他软件侵害的技术——包括虚拟机监控程序（Hypervisor，HV）本身。这是对传统 CPU 信任模型的一次重大变革。历史上，CPU 基于一种环形安全模型（ring-based security model），其中高特权环（ring）可以访问低特权环中的一切。这种模型在操作系统和许多典型环境中运作良好。</p>
+<p>在机密计算模型中，这种架构被修改了：虽然管理代码（如 HV）仍然管理系统资源和调度，但它不再拥有对系统的完全访问权。例如，HV 可以选择运行某个虚拟机还是另一个虚拟机，以及为每台虚拟机分配多少内存，但它<strong>无法查看或修改这些内存的内容</strong>。</p>
+<p>机密计算适用于工作负载的拥有者与物理机器拥有者不同的环境。这可能是因为你关注安全、担心其他租户利用云基础设施中的漏洞，也可能只是因为虚拟机中数据的类型所决定的。客户数据、财务信息、健康信息等高度敏感，并且通常受到严格的监管或合规控制。机密计算降低了这些数据在云端泄露的风险。</p>
+<h3>AMD SEV-SNP 概述</h3>
+<p>AMD 从 2017 年第一代 SEV（安全加密虚拟化，Secure Encrypted Virtualization）[12] 技术开始，就提供了对机密计算的支持。SEV 技术随着时间的推移不断演进，以支持更强的安全性和灵活性。本文重点介绍该技术的第三代——带有安全嵌套分页的 SEV，即 SEV-SNP。AMD SEV-SNP[1] 适用于第三代及更高版本的 AMD EPYC 处理器，后者自 2021 年初开始出货。</p>
+<p>SEV-SNP 利用了现有的 AMD-V 技术，该技术为虚拟化提供了特殊的硬件支持和加速。SEV-SNP 旨在保护虚拟机免受所有外部实体的侵害，包括裸金属虚拟机监控程序、BIOS（基本输入/输出系统）、其他虚拟机，甚至外部 I/O 设备。虽然 SEV-SNP 需要操作系统和 HV 层面的特殊软件支持，但它<strong>不需要对应用程序进行任何修改</strong>。今天在云虚拟机中运行的 Web 服务器可以轻松迁移到 SEV-SNP 虚拟机中，无需重新编译——这通常被称为 " 直接迁移 "（lift-and-shift）。</p>
+<h3>SEV-SNP 基础</h3>
+<p>SEV-SNP 支持机密计算的几项关键原则，包括机密性（confidentiality）、完整性（integrity）和远程证明（attestation）。机密性的需求不言自明——它就在 " 机密计算 " 这个名字里。在实际层面，这意味着限制对 SEV-SNP 虚拟机内部数据的访问。这主要通过内存加密来实现，如图 1 所示。AMD EPYC 处理器在每个片上内存控制器中包含一个高带宽 AES-128（第四代 AMD EPYC 为 AES-256）加密引擎。该引擎设计用于快速加解密 CPU 和 DRAM（动态随机存取存储器）之间的所有数据。每台 SEV-SNP 虚拟机在启动时会被分配一个唯一的随机加密密钥，硬件会严格控制该密钥的使用，确保明文仅对正确的虚拟机可见。</p>
+<p>虽然虚拟机内的大多数数据通常应保持私有，但虚拟机有时确实需要与 HV 或设备进行通信。在 SEV-SNP 架构中，这通过共享内存页来实现。虚拟机可以使用一个页表位（C-bit 或加密位）来选择哪些内存页是私有的、哪些是共享的。私有页（C-bit=1）始终使用虚拟机特定的加密密钥进行加密，而共享页（C-bit=0）可以是未加密的，也可以使用 HV 密钥加密。</p>
+<p>SEV-SNP 的另一个关键原则是数据完整性，即确保不受信任的代码（如 HV）不能以任何方式修改客户机内存。即使客户机内存是加密的，攻击者仍可能尝试损坏它或执行重放攻击——使用旧的密文副本替换较新的版本，使客户机似乎看到了旧版本的数据。SEV-SNP 架构使用一种称为 RMP（反向映射表，Reverse Map Table）的结构来强制保障客户机私有页的数据完整性。</p>
+<h3>反向映射表（RMP）</h3>
+<p>在 AMD 系统中，内存通过 CPU 指令或设备 I/O（即 DMA，直接内存访问）来访问。CPU 访问使用内部 MMU（内存管理单元），而 DMA 使用 IOMMU（I/O 内存管理单元）。MMU 和 IOMMU 在访问内存之前都通过页表将虚拟地址转换为物理地址。在 SEV-SNP 架构中，HV 控制页表和物理地址空间中的地址映射，但 RMP 在物理地址空间中强制执行访问控制。</p>
+<p>RMP 是一个大型的内存数据结构，用于跟踪每个内存页的所有者。每 4KB 的 DRAM 页对应一个 16 字节的 RMP 条目。该 RMP 条目指示谁被允许写入该页。在任何给定时刻，内存可能被分配给特定的客户机、HV，甚至为硬件预留。RMP 不会被软件直接修改——它只能通过受信任的方式（如特殊的 x86 CPU 指令）来操作。</p>
+<p>RMP 用于强制系统中内存页的访问控制。当 CPU 或 IOMMU 将虚拟地址转换为物理地址时，通常会在转换结束时执行 RMP 检查。软件或设备要访问的物理地址被用于索引 RMP，然后验证被分配的所有者是否就是正在尝试访问该页的实体。如果此检查失败，则产生错误并阻止访问。</p>
+<p>例如，要向客户机添加一个内存页，HV 会发出 RMPUPDATE x86 指令。该指令修改 RMP，使得特定的内存页现在被分配给特定的客户机在特定的 GPA（客户机物理地址）处。一旦完成，HV 就不再能写入该内存页。如果它试图这样做，CPU 将发出页面错误（page fault）。</p>
+<p>RMP 之所以被称为 " 反向映射 "，是因为对于客户机内存，RMP 条目包含了该页被分配到的 GPA 和 ASID（地址空间标识符）。这确保了恶意 HV 无法试图将一个页面映射到客户机地址空间的错误位置。</p>
+<p>当 CPU 运行 SEV-SNP 客户机时，在使用嵌套分页将 GVA（客户机虚拟地址）转换为 GPA、再转换为系统物理地址之后，RMP 条目会被读取并检查，如图 2 所示。RMP 条目必须包含在页表遍历过程中使用的正确 GPA，以验证转换的正确性。</p>
+<h3>其他保护机制</h3>
+<p>内存加密和 RMP 为 SEV-SNP 虚拟机提供了大量的机密性和完整性保护，但这并不是全部。SEV-SNP 旨在保护虚拟机免受恶意 HV、恶意设备等的攻击。当然，云提供商可能并不打算做恶意的事情，但机密计算的要义在于在所有情况下都受到保护。毕竟，良性软件可能因一个简单的远程代码利用而变得恶意。</p>
+<p>SEV-SNP 提供的额外安全机制的一个例子是虚拟机选择加入各种中断安全模式的能力。通常，用于模拟设备等的中断由 HV 注入客户虚拟机，这完全正常。但如果 HV 在虚拟机屏蔽中断时恶意注入一个中断会怎样？当然，这不是预期的行为——但 " 意外行为 " 正是攻击者垂涎的。</p>
+<p>SEV-SNP 提供的一种中断安全模式是 " 受限注入 "（Restricted Injection）模式。在此模式下，HV 被禁止向客户机注入除一个名为 #HV 的特定向量之外的任何中断或异常。当 #HV 被注入时，客户机使用一种特殊协议 [3] 来了解 HV 想要发送的底层中断或异常是什么。然后，客户机可以决定立即处理该事件或将其推迟到以后。通过这种方式，客户机可以有效地模拟自己的中断控制器，确保中断在正确的时间被处理，而无需依赖 HV。</p>
+<p>Spectre 等侧信道攻击是另一种可能打破 SEV-SNP 等技术隔离承诺的潜在威胁。因此，SEV-SNP 提供了特殊模式，例如隔离分支预测器，使虚拟机能够免受某些类型的侧信道攻击。</p>
+<p>当然，机密计算并非侧信道防护的万能药。恒定时间密码实现和避免依赖于秘密的分支等最佳实践对于达到最佳安全级别仍然是必需的。</p>
+<h3>远程证明</h3>
+<p>SEV-SNP 等技术可以隔离虚拟机，确保数据的机密性和完整性……但你怎么知道云端是否真的启用了该功能？你又怎么知道云提供商是否在其系统上安装了最新的固件或微码修复？这就是远程证明（attestation）发挥作用的地方。</p>
+<p>远程证明是 " 证明 "（proof）的一种正式说法——它是你就是你所声称的那个人，或者某物确实是它看起来的样子的证明。它涉及一个受信任的实体来证实（" 证明 "）另一个实体是安全的。</p>
+<p>在 SEV-SNP 等机密计算技术中，云提供商是不受信任的，因此唯一能够证明虚拟机安全性的实体是芯片提供商自身。在 SEV-SNP 中，这项服务由片上实体 ASP（AMD 安全处理器，AMD Security Processor）提供。</p>
+<p>ASP 是一个专用微控制器，它是处理器的一部分，但与 x86 CPU 分开。它拥有自己的资源，包括熔丝、SRAM、加密硬件等。ASP 运行由 AMD 签名的固件，并提供一系列服务来帮助管理 SEV-SNP 虚拟机的生命周期。这些服务记录在公开规范 [4] 中，用于创建/销毁 SEV-SNP 虚拟机、执行内存交换或实时迁移等任务——当然，还有提供远程证明。</p>
+<p>在 SEV-SNP 中，与虚拟机关联的初始代码和数据不是秘密的。要创建一个安全的虚拟机，HV 向 ASP 提供这些初始代码和数据，通常是客户机 BIOS 映像，如 OVMF（开放虚拟机固件）。通常，安全虚拟机使用加密磁盘，因此要成功启动，它需要解锁对该磁盘的访问。该磁盘的密钥可能存储在另一个密钥服务器上。这就是远程证明能够发挥作用的地方。</p>
+<p>要请求磁盘解密密钥，新虚拟机必须向密钥服务器证明自己。它不仅必须表明虚拟机是其所声称的，还必须证明它运行在安全的环境中，并且其映像未以任何方式被篡改。</p>
+<p>ASP 在 SEV-SNP 客户虚拟机请求时生成证明报告，如图 3 所示。该证明报告包含了关于虚拟机和平台本身的大量信息，如虚拟机初始代码和数据的度量值（即哈希值）、虚拟机的身份信息、当前加载的固件版本号等。</p>
+<p>整个报告使用一个名为 VCEK（版本化芯片背书密钥，Versioned Chip Endorsement Key）的特殊密钥进行签名。VCEK 对每个 AMD CPU 是唯一的，并使用当前版本的可变 ASP 固件和 CPU 微码进行密码学派生。这样的设计确保了查看报告的人可以确信该报告由特定版本的固件签名，而不是由试图伪装成新版本的旧版本签名。这一点尤为重要，因为当研究人员在 SEV-SNP 等功能中发现漏洞时，AMD 通常会发布固件或 CPU 微码更新来解决这些问题。</p>
+<p>这一切如何协同工作，以便与密钥服务器通信来完成安全虚拟机启动？证明报告中的一个字段是一个 512 位的字段，包含任意的客户机提供的数据。一个典型的用例可能涉及客户虚拟机创建一个公/私钥对，并将其公钥的哈希值提供给证明报告。如果验证方在证明报告中通过了所有必要的安全检查，它就可以使用该公钥与客户机安全通信。</p>
+<p>除了验证证明报告中的数据外，验证方还必须检查报告的签名。它应该由适当的 VCEK 签名——但验证方如何知道它可以信任该 VCEK？为此，AMD 创建了 KDS（密钥分发服务，Key Distribution Service），提供可以证明 VCEK 真实有效的证书。KDS 集成到了 AMD 的制造流程中，因此 AMD 只为正品 AMD 部件签署证书。（更多详情请参见 VCEK 证书和 KDS 接口规范。）[5] 一个可以协助 SEV-SNP 远程证明的示例工具可以在 GitHub 上找到。[18]</p>
+<h3>虚拟机内部安全（VMPL）</h3>
+<p>到目前为止，本文一直关注的是保护虚拟机免受 HV 和其他宿主软件的侵害。但虚拟机通常也需要强制执行自身内部的安全。例如，在裸金属系统上，UEFI（统一可扩展固件接口）安全启动可能使用 TPM（可信平台模块）芯片来计算启动流程的度量值，以确保免受 rootkit 等的侵害。在虚拟化系统中，TPM 可以由 HV 模拟。那么在 HV 不可信的机密环境中，这如何实现？</p>
+<p>为了解决此类问题，SEV-SNP 提供了一种称为 VMPL（虚拟机特权级，Virtual Machine Privilege Level）的能力，它允许额外的安全控制来保护客户机内部的内存不被同一客户机中的其他代码访问。每个 SEV-SNP 客户机最多可以有四个 VMPL，其中 VMPL0 是最高特权级，VMPL3 是最低特权级。每个硬件上下文——称为 VMSA（虚拟机保存区域，Virtual Machine Save Area）——都与一个 VMPL 关联，分配给客户机的每个内存页可以基于 VMPL 拥有不同的权限。VMPL0 始终对客户机地址空间中的每个页面拥有完全访问权，但它可以配置某些页面使其在（例如）VMPL1 处不可访问，或者仅允许只读访问。</p>
+<p>VMPL 的一个用例是在 VMPL0 运行 AMD 所称的 SVSM（安全虚拟机服务模块，Secure VM Service Module）：一段小型代码，旨在为客户机的其余部分提供安全服务。例如，COCONUT[8] 是一个用 Rust 编写的 SVSM，它在 VMPL0 运行，而 Linux 操作系统的其余部分在 VMPL1 运行。</p>
+<p>SVSM 可以做的一件事是为客户机提供 vTPM（虚拟 TPM）服务。vTPM 在客户机的操作系统中表现为普通的 TPM，并支持 UEFI 安全启动等功能。但因为 vTPM 运行在 VMPL0，它可以使用受到客户机操作系统保护的内存，使客户机中的任何恶意软件都无法破坏 vTPM 状态。而且不要忘记，整个客户机都在 SEV-SNP 下运行，因此它也受到保护，免受 HV 或其他虚拟机试图破坏其状态的攻击。</p>
+<p>vTPM 等服务也很有用，因为它们可以向连接到虚拟机的用户证明虚拟机的安全性。vTPM 可以证明虚拟机中运行的软件的安全性，而 SEV-SNP 证明报告则证明 vTPM 本身和虚拟机配置的安全性。</p>
+<p>AMD 正在与开源社区合作，进一步推动 SVSM 的开发，并最终通过 SVSM 支持加速实时迁移等功能以及潜在的其他服务。</p>
+<p>最后，SEV-SNP 架构还支持 " 准虚拟化程序 "（paravisor）的概念，它可以帮助运行几乎不了解 SEV-SNP 的客户机操作系统。这是一个小型但受信任的层，位于一个基本未修改的传统客户机操作系统和 HV 之间。准虚拟化程序处理所有与 SEV-SNP 相关的新安全协议，即使客户机操作系统对机密计算几乎一无所知。</p>
+<p>例如，Microsoft 在 Azure 中使用了一个自定义准虚拟化程序，利用 SEV-SNP VMPL 技术支持客户以最小的工作量将现有工作负载迁移到机密云中。[14] 该准虚拟化程序同时支持 Windows 和 Linux 的兼容性，并提供安全启动服务、安全中断传递等。像这样的技术扩展了机密计算的覆盖范围，使安全更容易被采用，而无需修改客户的软件堆栈。</p>
+<h3>安全的代价</h3>
+<p>安全从来不是免费的，但 SEV-SNP 等机密计算技术尽量将安全开销降至最低。SEV-SNP 使用高带宽 AES（高级加密标准）内存加密引擎、多级 TLB（转换后备缓冲区）以及其他微架构优化，以减少维护机密计算环境所需的额外安全检查对性能的影响。</p>
+<p>因此，SEV-SNP 在许多工作负载中的性能开销很小。例如，第三代 AMD EPYC 处理器在预估 SPECrate 2017_int_base[17] 上仅显示约 4% 的差异，在服务器端 Java 性能基准测试上约为 2%，在 Black-Scholes 基准测试上约为 2%。[9] 这些开销主要源于 AES 内存加密和 RMP 安全检查的影响。随着时间推移，AMD 预计这些性能差异可能会进一步缩小。当然，实际工作负载的性能取决于许多因素，包括硬件配置、虚拟机及其资源的放置方式、软件优化等。</p>
+<h3>安全设备 I/O</h3>
+<p>每一代 SEV 技术都在不断演进，增加更多的安全功能、能力和更高的性能。AMD 最近宣布了 SEV 的下一个重大演进——全新的 SEV-TIO（带有可信 I/O 的 SEV）技术。[2] SEV-TIO 支持将物理设备直接分配给 SEV-SNP 虚拟机，允许安全虚拟机和物理设备以快速且安全的方式通信。</p>
+<p>SEV-TIO 建立在多个行业标准之上，包括 PCIe 的 TDISP（TEE 设备接口安全协议）[15]、IDE（完整性和数据加密）[11]、SPDM（安全协议和数据模型）[10] 等。它在设备（如设备上的虚拟功能）和特定的 SEV-SNP 虚拟机之间提供安全链路。</p>
+<p>这条安全链路意味着虚拟机和设备之间的通信同时具备机密性和完整性。它提供了一种设备向客户虚拟机进行证明的方式，使客户虚拟机可以避免与恶意设备交互。最重要的是，它支持无需缓冲复制（bounce buffering）的高性能 DMA。</p>
+<p>在 AMD SEV-TIO 之前，所有设备通信都必须通过共享（未加密）内存页进行。这意味着虚拟机必须将要发送给设备的数据复制到 C-bit=0 的页面中，然后让设备从那里获取数据。如果你做大量 I/O，这种额外的内存复制可能代价相当高昂。有了 SEV-TIO，一旦客户机验证了设备的证明并确认其可信，它就可以允许设备直接 DMA 到客户机的私有（加密）内存——不再需要内存复制。</p>
+<p>此外，由于 C-bit=0 页面中的任何数据对 HV 可见，虚拟机要发送给设备的任何秘密数据在通过 DMA 发送之前都必须在软件中加密。有了 SEV-TIO，由于设备读写的数据可以以 C-bit=1 页面为目标，这种软件加密不再是严格必需的。</p>
+<p>SEV-TIO 设计为可与任何符合 TDISP 及相关标准的设备协同工作。这可能包括 SmartNIC（智能网络接口卡，可卸载网络和存储工作）、AI 训练加速器等。虽然并非每种工作负载都需要直接设备分配所提供的那种 I/O 安全性和性能，但 SEV-TIO 将机密计算的覆盖范围扩展到了 I/O 敏感型工作负载。</p>
+<h3>结论</h3>
+<p>机密计算是一种非常适合公有云的安全模型。它使客户能够租用虚拟机，同时享受基于硬件的隔离，确保云提供商不能有意或无意地查看或破坏其数据。SEV-SNP 是第一个商用的 x86 虚拟机隔离技术，为云端提供了包括机密性和完整性在内的保护，已部署在 Microsoft Azure[7]、AWS[6] 和 Google Cloud[19] 上。随着 SEV-SNP 等机密计算技术的发展，机密计算很可能将简单地成为云端的默认信任模型。</p>
+<h3>参考文献</h3>
+<ol>
+<li>AMD. 2020. AMD SEV-SNP: Strengthening VM isolation with integrity protection and more. AMD White Paper; <a href="https://www.amd.com/system/files/TechDocs/SEV-SNP-strengthening-vm-isolation-with-integrity-protection-and-more.pdf" rel="nofollow">https://www.amd.com/system/files/TechDocs/SEV-SNP-strengthening-vm-isolation-with-integrity-protection-and-more.pdf</a>.</li>
+<li>AMD. 2023. AMD SEV-TIO: trusted I/O for secure encrypted virtualization. AMD White Paper; <a href="https://www.amd.com/content/dam/amd/en/documents/developer/sev-tio-whitepaper.pdf" rel="nofollow">https://www.amd.com/content/dam/amd/en/documents/developer/sev-tio-whitepaper.pdf</a>.</li>
+<li>AMD. 2023. SEV-ES guest hypervisor communication block standardization; <a href="https://www.amd.com/system/files/TechDocs/56421-guest-hypervisor-communication-block-standardization.pdf" rel="nofollow">https://www.amd.com/system/files/TechDocs/56421-guest-hypervisor-communication-block-standardization.pdf</a>.</li>
+<li>AMD. 2022. SEV secure nested paging firmware ABI specification; <a href="https://www.amd.com/system/files/TechDocs/56860.pdf" rel="nofollow">https://www.amd.com/system/files/TechDocs/56860.pdf</a>.</li>
+<li>AMD. 2023. Versioned chip endorsement key (VCEK) certificate and KDS interface specification; <a href="https://www.amd.com/system/files/TechDocs/57230.pdf" rel="nofollow">https://www.amd.com/system/files/TechDocs/57230.pdf</a>.</li>
+<li>AWS. 2023. Amazon EC2 now supports AMD SEV-SNP; <a href="https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-amd-sev-snp/" rel="nofollow">https://aws.amazon.com/about-aws/whats-new/2023/04/amazon-ec2-amd-sev-snp/</a>.</li>
+<li>Cai, R. 2022. Azure confidential VMs using SEV-SNP (DCasv5/ECasv5) are now generally available. Microsoft Azure Confidential Computing Blog; <a href="https://techcommunity.microsoft.com/t5/azure-confidential-computing/azure-confidential-vms-using-sev-snp-dcasv5-ecasv5-are-now/ba-p/3573747" rel="nofollow">https://techcommunity.microsoft.com/t5/azure-confidential-computing/azure-confidential-vms-using-sev-snp-dcasv5-ecasv5-are-now/ba-p/3573747</a>.</li>
+<li>COCONUT Secure VM Service Module; <a href="https://github.com/coconut-svsm/svsm">https://github.com/coconut-svsm/svsm</a>.</li>
+<li>Comp, L. 2021. Microsoft Azure confidential computing powered by 3rd gen EPYC CPUs. AMD; <a href="https://community.amd.com/t5/epyc-processors/microsoft-azure-confidential-computing-powered-by-3rd-gen-epyc/ba-p/497796" rel="nofollow">https://community.amd.com/t5/epyc-processors/microsoft-azure-confidential-computing-powered-by-3rd-gen-epyc/ba-p/497796</a>.</li>
+<li>DMTF. 2023. All published versions of DSP0274; <a href="https://www.dmtf.org/dsp/DSP0274" rel="nofollow">https://www.dmtf.org/dsp/DSP0274</a>.</li>
+<li>Harriman, D. 2022. Integrity and Data Encryption and IO security updates. PCI-SIG; <a href="https://pcisig.com/blog/integrity-and-data-encryption-ide-and-io-security-updates" rel="nofollow">https://pcisig.com/blog/integrity-and-data-encryption-ide-and-io-security-updates</a>.</li>
+<li>Kaplan, D., Powell, J., Woller, T. 2021. AMD memory encryption. AMD White Paper; <a href="https://www.amd.com/system/files/TechDocs/memory-encryption-white-paper.pdf" rel="nofollow">https://www.amd.com/system/files/TechDocs/memory-encryption-white-paper.pdf</a>.</li>
+<li>Linux SVSM; <a href="https://github.com/AMDESE/linux-svsm">https://github.com/AMDESE/linux-svsm</a>.</li>
+<li>Perez-Vargas, C. 2023. Confidential VMs on Azure. Microsoft Windows OS Platform Blog; <a href="https://techcommunity.microsoft.com/t5/windows-os-platform-blog/confidential-vms-on-azure/ba-p/3836282" rel="nofollow">https://techcommunity.microsoft.com/t5/windows-os-platform-blog/confidential-vms-on-azure/ba-p/3836282</a>.</li>
+<li>PCI-SIG. 2022. TEE Device Interface Security Protocol; <a href="https://pcisig.com/tee-device-interface-security-protocol-tdisp" rel="nofollow">https://pcisig.com/tee-device-interface-security-protocol-tdisp</a>.</li>
+<li>Russinovich, M., et al. 2021. Toward confidential cloud computing. Communications of the ACM 64 (6), 54–61; <a href="https://dl.acm.org/doi/10.1145/3453930" rel="nofollow">https://dl.acm.org/doi/10.1145/3453930</a>.</li>
+<li>See <a href="https://www.spec.org" rel="nofollow">https://www.spec.org</a> for more information about SPEC benchmarks.</li>
+<li>VirTEE; <a href="https://github.com/virtee/">https://github.com/virtee/</a>.</li>
+<li>Young, J. 2023. Oh SNP! VMs get even more confidential. Google Cloud Blog; <a href="https://cloud.google.com/blog/products/identity-security/rsa-snp-vm-more-confidential" rel="nofollow">https://cloud.google.com/blog/products/identity-security/rsa-snp-vm-more-confidential</a>.</li>
+</ol>
+<h3>作者简介</h3>
+<p>David Kaplan 是 AMD 的高级院士（Senior Fellow），也是 AMD 产品安全办公室中 AMD 安全加密虚拟化技术的首席架构师。Kaplan 在 AMD 拥有超过 17 年的工作经验，过去 10 年一直从事机密计算领域的工作。他在职业生涯中迄今已提交了超过 50 项专利，并拥有伊利诺伊大学的理学学士学位。</p>
+</div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://chenzongyao200127.github.io">Solar1s' Personal Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行 "+diffDay+" 天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.disabled=true;
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","chenzongyao200127/chenzongyao200127.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+
+
+</script>
+
+
+</html>
