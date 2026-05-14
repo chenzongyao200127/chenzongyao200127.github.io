@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="## OSDI '26 — 第 20 届 USENIX 操作系统设计与实现研讨会
+
+**时间:** 2026 年 7 月 13–15 日
+**Program Co-Chairs:** Eddie Kohler (Harvard), Amar Phanishayee (NVIDIA)
+
+OSDI 2026 共录用约 80+ 篇论文，按 session 分为三轨并行。">
+<meta property="og:title" content="OSDI 2026 论文综述">
+<meta property="og:description" content="## OSDI '26 — 第 20 届 USENIX 操作系统设计与实现研讨会
+
+**时间:** 2026 年 7 月 13–15 日
+**Program Co-Chairs:** Eddie Kohler (Harvard), Amar Phanishayee (NVIDIA)
+
+OSDI 2026 共录用约 80+ 篇论文，按 session 分为三轨并行。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://chenzongyao200127.github.io/post/OSDI%202026%20-lun-wen-zong-shu.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>OSDI 2026 论文综述</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">OSDI 2026 论文综述</h1>
+<div class="title-right">
+    <a href="https://chenzongyao200127.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/chenzongyao200127/chenzongyao200127.github.io/issues/19" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><h2>OSDI '26 — 第 20 届 USENIX 操作系统设计与实现研讨会</h2>
+<p><strong>时间:</strong> 2026 年 7 月 13–15 日<br>
+<strong>Program Co-Chairs:</strong> Eddie Kohler (Harvard), Amar Phanishayee (NVIDIA)</p>
+<p>OSDI 2026 共录用约 80+ 篇论文，按 session 分为三轨并行。以下按研究方向分类综述。</p>
+<hr>
+<h3>一、LLM 推理与 KV Cache（约 10 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Contextra</strong></td>
+<td>面向长上下文 LLM 服务的层次化上下文缓存 (Stanford/SJTU/NVIDIA)</td>
+</tr>
+<tr>
+<td><strong>ECHO</strong></td>
+<td>无损预取的 KV Cache 卸载，服务原生稀疏注意力 LLM (上交/华为)</td>
+</tr>
+<tr>
+<td><strong>No Buffer, No Bottleneck</strong></td>
+<td>零拷贝 KV Cache 卸载，服务长上下文 LLM (UVA)</td>
+</tr>
+<tr>
+<td><strong>Simple is Better</strong></td>
+<td>乘法即够——LLM 请求调度 (上交/阿里巴巴)</td>
+</tr>
+<tr>
+<td><strong>Chimera (OSDI)</strong></td>
+<td>通过 GPU 内存气球实现低成本多 LLM 服务 (UCLA/UC Berkeley/ByteDance)</td>
+</tr>
+<tr>
+<td><strong>Djinn</strong></td>
+<td>语义感知的透明 GPU 解耦 (UC Berkeley/NVIDIA/UT Austin)</td>
+</tr>
+<tr>
+<td><strong>Efficient LLM Serving on Commodity GPU Clusters</strong></td>
+<td>数据精简的跨实例编排 (中山大学)</td>
+</tr>
+<tr>
+<td><strong>Revisiting Pipeline Parallelism for LLM Serving</strong></td>
+<td>重新审视流水线并行 (Korea Univ)</td>
+</tr>
+<tr>
+<td><strong>LLMFabric</strong></td>
+<td>统一去中心化 HPC 集群的异构 LLM 服务 (ETH/Cambridge/MIT/HKUST)</td>
+</tr>
+<tr>
+<td><strong>Kairox</strong></td>
+<td>基于在线神经元均衡的自适应 GPU-CPU 混合推理 (中山大学)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> KV Cache 管理（层次缓存、零拷贝卸载、预取）成为独立方向；GPU 解耦 (disaggregated) 推理和跨集群异构服务是新主题。</p>
+<hr>
+<h3>二、RL 训练与 Post-Training（全新方向 — 5 篇专属 session）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Weave</strong></td>
+<td>面向解耦式 RL Post-Training 的高效协同调度 (港科大/阿里巴巴)</td>
+</tr>
+<tr>
+<td><strong>RLux</strong></td>
+<td>宏观到微观流变换实现灵活高效大规模 RL (清华/北大/无穹)</td>
+</tr>
+<tr>
+<td><strong>DynaRL</strong></td>
+<td>大规模 RL 训练的灵活动态调度 (北大/无穹)</td>
+</tr>
+<tr>
+<td><strong>MARS</strong></td>
+<td>解耦式多任务 Agentic RL 训练 (港科大/阿里巴巴)</td>
+</tr>
+<tr>
+<td><strong>GroupMind</strong></td>
+<td>群组感知上下文学习加速同步 LLM RL (清华/Moonshot AI)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> RLHF/GRPO 等 post-training 阶段的系统支持首次在顶会出现独立 session，反映了 AI 对齐训练已成为系统级挑战。</p>
+<hr>
+<h3>三、大规模模型训练（约 8 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tessera</strong></td>
+<td>面向万亿参数异构 MoE 的全局流水线并行 (华科/阿里云)</td>
+</tr>
+<tr>
+<td><strong>HSPMD</strong></td>
+<td>层次化异构 SPMD 分布式训练 (北大/上交/Purdue)</td>
+</tr>
+<tr>
+<td><strong>Syncopate</strong></td>
+<td>基于块中心调度的自动细粒度计算 - 通信重叠 (UCSD/OpenAI/Meta)</td>
+</tr>
+<tr>
+<td><strong>Teaching The Old Dog New Tricks</strong></td>
+<td>大规模 LLM 预训练的高效数据流水线 (中科大/字节跳动)</td>
+</tr>
+<tr>
+<td><strong>Cocoon</strong></td>
+<td>基于相关噪声的差分隐私训练架构 (Penn State/SK Hynix/KAIST)</td>
+</tr>
+<tr>
+<td><strong>Arceus</strong></td>
+<td>大模型训练中同时降低动态和静态能耗 (Michigan)</td>
+</tr>
+<tr>
+<td><strong>Continuum</strong></td>
+<td>中断容忍的 ML 训练运行时 (阿里云/Harvard/UT Austin)</td>
+</tr>
+<tr>
+<td><strong>RobustRL</strong></td>
+<td>RL Post-Training 的基于角色容错系统 (浙大)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> 训练可靠性（SDC 检测、中断恢复）和能效优化成为新关注点，不再仅追求吞吐。</p>
+<hr>
+<h3>四、训练可靠性与 GPU 静默错误（专属 session — 4 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SDCs in the Wild</strong></td>
+<td>生产 LLM 训练中 SDC 缺陷 GPU 的画像与诊断 (上交/字节跳动)</td>
+</tr>
+<tr>
+<td><strong>Safeguarding LLM Training</strong></td>
+<td>3500 万 GPU 小时的在线 SDC 检测经验 (清华/字节跳动)</td>
+</tr>
+<tr>
+<td><strong>OpGuard</strong></td>
+<td>比特级对齐的生产 LLM 训练精确调试 (Michigan/字节跳动)</td>
+</tr>
+<tr>
+<td><strong>RobustRL</strong></td>
+<td>RL Post-Training 的角色容错系统 (浙大)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> GPU 静默数据损坏 (SDC) 首次获得完整 session 级别关注——这是大规模训练中最隐蔽、最难调试的问题之一。字节跳动贡献了多篇来自生产环境的经验。</p>
+<hr>
+<h3>五、CXL 与解耦内存系统（约 10 篇，两个 session）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>RAMRyder</strong></td>
+<td>弹性内存池化突破到对端 (UCSD/Samsung)</td>
+</tr>
+<tr>
+<td><strong>MAC</strong></td>
+<td>CXL DRAM 元数据加速 (首尔国立/UIUC)</td>
+</tr>
+<tr>
+<td><strong>Finding NEMO</strong></td>
+<td>敏捷且表达力强的内存可观测性 (UW/Meta/Microsoft)</td>
+</tr>
+<tr>
+<td><strong>OBASE</strong></td>
+<td>基于对象的地址空间工程改进内存分层 (Wisconsin/Google/xAI)</td>
+</tr>
+<tr>
+<td><strong>MDK</strong></td>
+<td>重新思考数据中心内存回收问题 (Google/UBC)</td>
+</tr>
+<tr>
+<td><strong>LiteSwitch</strong></td>
+<td>收割亚微秒级 CXL 内存停顿 (Princeton/Columbia)</td>
+</tr>
+<tr>
+<td><strong>Duhu</strong></td>
+<td>面向分布式计算框架的共享解耦内存 (NYU/Databricks/Microsoft/SK Hynix)</td>
+</tr>
+<tr>
+<td><strong>Blowfish</strong></td>
+<td>面向解耦内存的弹性虚拟机内存 (北大/上交/华为云)</td>
+</tr>
+<tr>
+<td><strong>Espresso</strong></td>
+<td>通过 SSD 间计算资源共享构建低成本 CXL JBOF (北大)</td>
+</tr>
+<tr>
+<td><strong>FORGE</strong></td>
+<td>缓解内存解耦缓存系统中的同步放大 (华科)</td>
+</tr>
+<tr>
+<td><strong>MEGALON</strong></td>
+<td>部分一致 CXL 内存的高效数据共享 (UIUC/NVIDIA)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> CXL 生态已从概念验证进入实际系统设计阶段。内存池化、弹性管理、一致性协议、以及 CXL 上的缓存/索引结构是核心议题。</p>
+<hr>
+<h3>六、MoE 专家混合系统（专属 session）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Achieving Cloud-Grade SLOs for Local MoE</strong></td>
+<td>CPU-GPU 混合设计实现本地 MoE 推理的云级 SLO (清华/星云)</td>
+</tr>
+<tr>
+<td><strong>UEP</strong></td>
+<td>可移植的专家并行通信 (UC Berkeley/UC Davis/AMD)</td>
+</tr>
+<tr>
+<td><strong>BatchGen</strong></td>
+<td>面向可扩展高效批推理的架构 (Edinburgh/Tencent)</td>
+</tr>
+<tr>
+<td><strong>Extensible Software Transport Layer for ML</strong></td>
+<td>面向 ML 工作负载的可扩展软件传输层 (UC Davis/UC Berkeley/Tsinghua/IBM/Amazon)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> MoE 模型的通信瓶颈（All-to-All、专家路由）是独特的系统问题，获得了专属 session。</p>
+<hr>
+<h3>七、Agentic AI 与 LLM 运维（全新方向 — 5 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SystemX</strong></td>
+<td>云平台中资源高效的 Agentic 工作流编排 (MIT/Microsoft Azure)</td>
+</tr>
+<tr>
+<td><strong>ACE</strong></td>
+<td>AI 驱动的仓库级计算机代码效率优化器 (Google/Google DeepMind)</td>
+</tr>
+<tr>
+<td><strong>StriaTrace</strong></td>
+<td>LLM 推理的高效追踪与诊断 (上交/阿里云)</td>
+</tr>
+<tr>
+<td><strong>Diagnosing Performance Issues in Application-Defined Resources</strong></td>
+<td>应用自定义资源的性能问题诊断 (BU/UW)</td>
+</tr>
+<tr>
+<td><strong>ADAngel</strong></td>
+<td>自适应计算映射加速任意精度量化 LLM (上交)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> "Agentic AI" 首次作为独立系统方向出现在顶会，涵盖 Agent 工作流编排、LLM 系统运维可观测性。</p>
+<hr>
+<h3>八、操作系统内核与调度（约 8 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MultiLane</strong></td>
+<td>消除用户态网络栈中的集中瓶颈 (北大)</td>
+</tr>
+<tr>
+<td><strong>Koma</strong></td>
+<td>内核内消息导向调度实现低尾延迟 (EPFL)</td>
+</tr>
+<tr>
+<td><strong>kSTEP</strong></td>
+<td>Linux CPU 调度器 Bug 的画像与受控测试 (Wisconsin/Purdue)</td>
+</tr>
+<tr>
+<td><strong>What Are You (M)Waiting For</strong></td>
+<td>超大规模云中空闲的隐藏代价 (上交/阿里云)</td>
+</tr>
+<tr>
+<td><strong>Xkernel</strong></td>
+<td>重新思考 OS 内核的性能可调性 (清华/UIUC/Microsoft Research)</td>
+</tr>
+<tr>
+<td><strong>DeLFS</strong></td>
+<td>面向众核的去中心化日志结构文件系统 (中央大学)</td>
+</tr>
+<tr>
+<td><strong>Surviving the Impossible Trinity</strong></td>
+<td>现代商用移动设备的 CPU 调度问题 (荣耀/南大/东南)</td>
+</tr>
+<tr>
+<td><strong>PeeR</strong></td>
+<td>面向延迟敏感 eBPF 应用的一等公民调度 (MIT)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> 内核调度器的可测试性 (kSTEP)、可调性 (Xkernel)、以及针对超大规模场景的空闲代价分析是突出方向。eBPF 继续渗透到更多系统层面。</p>
+<hr>
+<h3>九、机密计算与安全（约 7 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>JANUS</strong></td>
+<td>跨域协作嵌套虚拟化实现安全容器 (蚂蚁/华科/阿里巴巴)</td>
+</tr>
+<tr>
+<td><strong>Merlin</strong></td>
+<td>面向加密计算的透明高效虚拟内存 (UCLA/UC Berkeley)</td>
+</tr>
+<tr>
+<td><strong>Nested SEV</strong></td>
+<td>安全且通用的嵌套虚拟化 SEV 支持 (九州工大)</td>
+</tr>
+<tr>
+<td><strong>μUSB</strong></td>
+<td>ARM TrustZone 中实用安全的 USB 驱动复用 (电子科大/CISPA)</td>
+</tr>
+<tr>
+<td><strong>Accelerating Confidential Databases</strong></td>
+<td>无密码学映射加速机密数据库 (中科院软件所)</td>
+</tr>
+<tr>
+<td><strong>USEC</strong></td>
+<td>用户需求驱动的操作系统强制访问控制框架 (清华/统信)</td>
+</tr>
+<tr>
+<td><strong>Mohabi</strong></td>
+<td>解耦并沙箱化 Firefox JavaScript 引擎 (UT Austin/Stanford/Mozilla)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> 嵌套虚拟化 + TEE (SEV/TrustZone) 的组合是主要技术路线。安全容器从单层到跨域协作 (JANUS) 标志着复杂度升级。</p>
+<hr>
+<h3>十、虚拟化与热迁移（约 6 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>M3U</strong></td>
+<td>可扩展内核内存管理实现高端 VM 高效 Post-copy 热迁移 (上交/阿里云)</td>
+</tr>
+<tr>
+<td><strong>Compaction-Free Defrag</strong></td>
+<td>通过无限客户物理地址空间实现无压缩内存碎片整理 (哈工大深圳)</td>
+</tr>
+<tr>
+<td><strong>Inside Out</strong></td>
+<td>VM 内省的范式转换 (Grenoble/Toulouse/UBC)</td>
+</tr>
+<tr>
+<td><strong>vBOIDs</strong></td>
+<td>通过粗粒度调度抽象驯服容器混乱 (UT Arlington/AFRL)</td>
+</tr>
+<tr>
+<td><strong>vClutch</strong></td>
+<td>消费级 GPU 的高效透明时间复用 (Duke)</td>
+</tr>
+<tr>
+<td><strong>Virtualizing eBPF with Late-Binding</strong></td>
+<td>延迟绑定的 eBPF 虚拟化 (上交)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> VM 热迁移在超大规模部署下的内存管理难题 (M3U) 和无压缩碎片整理是新的研究点。eBPF 虚拟化 (Late-Binding) 将 eBPF 扩展到虚拟化环境。</p>
+<hr>
+<h3>十一、GPU 编译器与内核优化（5 篇专属 session）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Optimal Software Pipelining</strong></td>
+<td>Tensor Core GPU 的最优软件流水线与 Warp 特化 (Stanford/NVIDIA)</td>
+</tr>
+<tr>
+<td><strong>TileLoom</strong></td>
+<td>面向空间数据流加速器的自动数据流规划 (NUS/Arizona State)</td>
+</tr>
+<tr>
+<td><strong>TGX</strong></td>
+<td>张量程序超核化的编译器与运行时 (CMU/清华/Purdue)</td>
+</tr>
+<tr>
+<td><strong>GraCE</strong></td>
+<td>编译器支持解锁 CUDA Graph 的 ML 工作负载 (IISc/Microsoft Research)</td>
+</tr>
+<tr>
+<td><strong>VTC</strong></td>
+<td>通过虚拟张量消除数据移动的 DNN 编译 (UIUC/Georgia Tech/Microsoft)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p><strong>趋势:</strong> GPU 编译器栈正走向产品化——从 Warp 级流水线到 CUDA Graph 自动化，再到跨层数据移动消除。</p>
+<hr>
+<h3>十二、Serverless 与弹性（5 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Stop Pretending to be Busy</strong></td>
+<td>共置批工作负载的 Serverless 范式 (清华/上交/蚂蚁)</td>
+</tr>
+<tr>
+<td><strong>Arca</strong></td>
+<td>基于 Continuation 的计算 (Stanford)</td>
+</tr>
+<tr>
+<td><strong>Rethinking Process Snapshots</strong></td>
+<td>近温 Serverless 冷启动 (MIT)</td>
+</tr>
+<tr>
+<td><strong>Distributed Speculative Execution</strong></td>
+<td>弹性云应用的分布式投机执行 (MIT/Microsoft Research)</td>
+</tr>
+<tr>
+<td><strong>Continuum</strong></td>
+<td>中断容忍的 ML 训练运行时 (阿里云/Harvard)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h3>十三、存储与文件系统（约 6 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Oxbow</strong></td>
+<td>多组件文件系统的协调架构 (UIUC/KAIST)</td>
+</tr>
+<tr>
+<td><strong>Scaling the IO wall with Declarative IO</strong></td>
+<td>声明式 I/O 突破 IO 墙 (Google/CMU/Microsoft/UW/UNC)</td>
+</tr>
+<tr>
+<td><strong>Umap</strong></td>
+<td>重新审视分布式文件系统上的内存映射 I/O (SCITIX/清华/北大)</td>
+</tr>
+<tr>
+<td><strong>CoPilotIO</strong></td>
+<td>CPU 作为 GPU I/O 的副驾驶 (港科大广州)</td>
+</tr>
+<tr>
+<td><strong>WiseCode</strong></td>
+<td>突破宽条纹向量码的可扩展性壁垒 (清华)</td>
+</tr>
+<tr>
+<td><strong>The LogDrive</strong></td>
+<td>云共享日志的可组合持久性 (Confluent/Meta)</td>
+</tr>
+<tr>
+<td><strong>Timelock Drive</strong></td>
+<td>存储系统的时间隔离防御 (Michigan)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h3>十四、网络与 RDMA（约 5 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>RoCE CREED</strong></td>
+<td>面向 SmartNIC 的服务增强 RDMA 卸载引擎 (ETH)</td>
+</tr>
+<tr>
+<td><strong>DPA-Store</strong></td>
+<td>有序网络数据路径 KV 存储 (Mainz/Aachen)</td>
+</tr>
+<tr>
+<td><strong>FARLock</strong></td>
+<td>公平的非对称 RDMA 锁 (Simon Fraser)</td>
+</tr>
+<tr>
+<td><strong>When DDIO Meets Page Coloring</strong></td>
+<td>Sepia 重审 DDIO 性能 (成均馆)</td>
+</tr>
+<tr>
+<td><strong>Extensible Software Transport</strong></td>
+<td>ML 负载的可扩展软件传输层 (UC Davis/Berkeley/清华)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h3>十五、共识与 BFT（4 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Bodega</strong></td>
+<td>通过 Roster Lease 实现任意位置的本地化线性化读 (AWS/Wisconsin)</td>
+</tr>
+<tr>
+<td><strong>Equal Opportunity</strong></td>
+<td>有序共识的正确性条件 (Cornell/UW/Microsoft)</td>
+</tr>
+<tr>
+<td><strong>Jetpack</strong></td>
+<td>使共识普遍快速 (Stony Brook)</td>
+</tr>
+<tr>
+<td><strong>PoliceCar</strong></td>
+<td>通过 Racing 拯救 BFT (UC Berkeley/Cornell/Duke/Sei Labs)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h3>十六、图计算与向量搜索（4 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>FlowANN</strong></td>
+<td>解耦图依赖的十亿级 GPU 向量搜索 (上交)</td>
+</tr>
+<tr>
+<td><strong>Efficient GPU-Centric Evolving Graph Processing</strong></td>
+<td>GPU 中心的动态图处理 (CityU HK)</td>
+</tr>
+<tr>
+<td><strong>Pluto</strong></td>
+<td>通过高级镜像实现高性能分布式图分析 (UT Austin)</td>
+</tr>
+<tr>
+<td><strong>Helmsman</strong></td>
+<td>成本效益高性能近似近邻搜索 (华东师大/小红书/上交)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h3>十七、集群调度与能效（约 6 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DVLA</strong></td>
+<td>动态 VM 生命期感知调度 (阿里云)</td>
+</tr>
+<tr>
+<td><strong>PIMS</strong></td>
+<td>最小容量缓冲的全队数据中心维护 (Meta/Cambridge/Ohio State)</td>
+</tr>
+<tr>
+<td><strong>Heterogeneity at Hyperscale</strong></td>
+<td>大规模生产 AI 集群的异构画像与调度 (港科大/阿里巴巴/复旦)</td>
+</tr>
+<tr>
+<td><strong>Hardware Lifecycle-Aware Power Planning</strong></td>
+<td>商用超大规模数据中心的硬件生命周期功耗规划 (Meta/UT Austin)</td>
+</tr>
+<tr>
+<td><strong>SPADE</strong></td>
+<td>信号感知的 DAG 调度与动态供给 (UMass/Berkeley/MIT)</td>
+</tr>
+<tr>
+<td><strong>Quota Marketplace</strong></td>
+<td>ML 训练资源的动态定价高效分配 (Google)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h3>十八、测试、调试与正确性（约 8 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ValScope</strong></td>
+<td>面向 DBMS 逻辑 Bug 的值语义变体测试 (厦大)</td>
+</tr>
+<tr>
+<td><strong>The Abstention Protocol</strong></td>
+<td>Clos 网络的根因分析 (Microsoft)</td>
+</tr>
+<tr>
+<td><strong>When Sampling Lies</strong></td>
+<td>平坦工作负载的可信性能剖析 Blink (UofT/Huawei/Yscope)</td>
+</tr>
+<tr>
+<td><strong>kSTEP</strong></td>
+<td>Linux CPU 调度器 Bug 画像与受控测试 (Wisconsin/Purdue)</td>
+</tr>
+<tr>
+<td><strong>Aletheia</strong></td>
+<td>微服务中数据完整性违规自动检测 (INESC-ID/IST)</td>
+</tr>
+<tr>
+<td><strong>jwmalloc</strong></td>
+<td>面向移动设备的已验证内存分配器 (华为/上交)</td>
+</tr>
+<tr>
+<td><strong>Neuro-Symbolic Proof Generation</strong></td>
+<td>系统软件验证的神经符号证明生成 (南大/ETH)</td>
+</tr>
+<tr>
+<td><strong>Succinct Proofs for Numerical Computations</strong></td>
+<td>数值计算的简洁证明 (NYU)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h3>十九、移动与边缘系统（4 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sereno</strong></td>
+<td>遮蔽中消除移动 LLM 推理的内存带宽争用 (上交)</td>
+</tr>
+<tr>
+<td><strong>LifeLine</strong></td>
+<td>对象 - 页面生命期对齐的 GC (CityU HK)</td>
+</tr>
+<tr>
+<td><strong>Unleash All Cores</strong></td>
+<td>非对称感知的移动 CPU DNN 推理 (武大/澳门)</td>
+</tr>
+<tr>
+<td><strong>Surviving the Impossible Trinity</strong></td>
+<td>现代商用移动设备的 CPU 调度 (荣耀/南大)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h3>二十、同步原语与并发（4 篇）</h3>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>论文</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Arctic</strong></td>
+<td>实用无锁自适应基数树 (UT Austin/ETH)</td>
+</tr>
+<tr>
+<td><strong>Efficient Synchronization via Generalized Cache Coherence</strong></td>
+<td>广义缓存一致性实现高效可扩展同步 (Yale)</td>
+</tr>
+<tr>
+<td><strong>Shaving the Peaks</strong></td>
+<td>通过解耦 GC 驯服托管工作负载尾延迟 (上交)</td>
+</tr>
+<tr>
+<td><strong>DeLFS</strong></td>
+<td>面向众核的去中心化日志结构文件系统 (中央大学)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<hr>
+<h3>核心观察与趋势总结</h3>
+<p><strong>1. RL Post-Training 系统化。</strong> OSDI 2026 首次设立 "RL Training at Scale" 专属 session（5 篇），标志着 RLHF/GRPO 等对齐阶段从算法走向系统工程。</p>
+<p><strong>2. GPU SDC 成为一等公民问题。</strong> 4 篇论文专攻训练中的静默数据损坏检测与诊断，字节跳动贡献了来自 3500 万 GPU 小时的生产经验。</p>
+<p><strong>3. CXL 内存生态爆发。</strong> 约 10 篇论文覆盖 CXL 内存池化、弹性 VM 内存、CXL JBOF、以及部分一致性协议，CXL 已从研究走向工程实践。</p>
+<p><strong>4. Agentic AI 系统元年。</strong> "Agentic AI and LLM Operations" 首次成为独立 session，涵盖 Agent 工作流编排 (SystemX)、LLM 推理运维可观测 (StriaTrace)、AI 驱动的代码优化 (ACE)。</p>
+<p><strong>5. GPU 编译器产品化。</strong> 5 篇论文从 Warp 级流水线、CUDA Graph 编译支持到虚拟张量，显示 GPU 编译器栈正在成熟。</p>
+<p><strong>6. 内核可测试性觉醒。</strong> kSTEP (Linux 调度器 Bug 测试)、Xkernel (内核性能可调性)、Virtualizing eBPF 等论文表明内核系统性研究正回归。</p>
+<p><strong>7. 大规模集群运维。</strong> 来自 Meta (PIMS, Hardware Lifecycle)、阿里云 (DVLA, DiTing)、Google (ACE, Quota Marketplace) 的生产论文持续扩大。</p>
+<hr>
+<h3>内核/虚拟化/安全方向重点推荐</h3>
+<ul>
+<li><strong>kSTEP</strong> — Linux CPU 调度器 Bug 画像与受控测试框架 (Wisconsin/Purdue)</li>
+<li><strong>Xkernel</strong> — 重新思考 OS 内核性能可调性 (清华/UIUC/Microsoft)</li>
+<li><strong>JANUS</strong> — 跨域协作嵌套虚拟化安全容器 (蚂蚁/阿里/华科)</li>
+<li><strong>Nested SEV</strong> — 嵌套虚拟化的安全 SEV 支持 (九州工大)</li>
+<li><strong>Virtualizing eBPF with Late-Binding</strong> — eBPF 虚拟化 (上交)</li>
+<li><strong>M3U</strong> — 高端 VM Post-copy 热迁移内核内存管理 (上交/阿里云)</li>
+<li><strong>Compaction-Free Defrag</strong> — 无限客户物理地址空间免压缩碎片整理 (哈工大)</li>
+<li><strong>SDCs in the Wild</strong> — 生产训练 GPU 静默损坏画像 (上交/字节)</li>
+<li><strong>MultiLane</strong> — 消除用户态网络栈集中瓶颈 (北大)</li>
+<li><strong>Koma</strong> — 内核内消息导向调度低尾延迟 (EPFL)</li>
+<li><strong>μUSB</strong> — ARM TrustZone USB 驱动复用 (电子科大)</li>
+<li><strong>What Are You (M)Waiting For</strong> — 超大规模云空闲代价 (上交/阿里云)</li>
+</ul>
+<hr>
+<h2>SOSP 2026 状态</h2>
+<p><strong>会议:</strong> 第 32 届 ACM 操作系统原理研讨会<br>
+<strong>网站:</strong> <a href="https://sigops.org/s/conferences/sosp/2026/" rel="nofollow">https://sigops.org/s/conferences/sosp/2026/</a><br>
+<strong>投稿截止:</strong> 2026 年 4 月 1 日 (已过)<br>
+<strong>录用结果:</strong> 尚未公布 (页面显示 "TBD")</p>
+<p>SOSP 2026 的论文截稿已过，但录用结果尚未对外发布。根据日程推算，结果预计在 2026 年 6–7 月间公布。届时可以再补充综述。</p>
+<hr>
+<p><em>数据来源: <a href="https://www.usenix.org/conference/osdi26/technical-sessions" rel="nofollow">OSDI '26 Technical Sessions</a> | <a href="https://sigops.org/s/conferences/sosp/2026/accepted.html" rel="nofollow">SOSP 2026</a></em></p>
+</div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://chenzongyao200127.github.io">Solar1s' Personal Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行 "+diffDay+" 天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.disabled=true;
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","chenzongyao200127/chenzongyao200127.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+
+
+</script>
+
+
+</html>
