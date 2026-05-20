@@ -12,11 +12,11 @@
     </script>
 <meta name="description" content="> 原文链接：https://abseil.io/fast/hints.html#performance-hints
 
-> 高德纳的这句名言确实困扰过很多人，业界常常把“过早优化是万恶之源”当成系统前期可以随意挥霍性能、堆砌抽象的借口。">
+高德纳的这句名言确实困扰过很多人，业界常常把“过早优化是万恶之源”当成系统前期可以随意挥霍性能、堆砌抽象的借口。">
 <meta property="og:title" content="「译」Performance Hints">
 <meta property="og:description" content="> 原文链接：https://abseil.io/fast/hints.html#performance-hints
 
-> 高德纳的这句名言确实困扰过很多人，业界常常把“过早优化是万恶之源”当成系统前期可以随意挥霍性能、堆砌抽象的借口。">
+高德纳的这句名言确实困扰过很多人，业界常常把“过早优化是万恶之源”当成系统前期可以随意挥霍性能、堆砌抽象的借口。">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://chenzongyao200127.github.io/post/%E3%80%8C-yi-%E3%80%8DPerformance%20Hints.html">
 <meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
@@ -80,20 +80,12 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 <div class="markdown-body" id="postBody"><blockquote>
 <p>原文链接：<a href="https://abseil.io/fast/hints.html#performance-hints" rel="nofollow">https://abseil.io/fast/hints.html#performance-hints</a></p>
 </blockquote>
-<blockquote>
 <p>高德纳的这句名言确实困扰过很多人，业界常常把“过早优化是万恶之源”当成系统前期可以随意挥霍性能、堆砌抽象的借口。这篇文章最内核的价值，就是把这层窗户纸捅破了：如果一种更快的实现方式并不会增加代码的复杂度和阅读门槛，那它就根本不是“过早优化”，而是工程质量的底线。</p>
-</blockquote>
-<blockquote>
 <p>剥开长文中那些具体的 C++ 特性（如 <code class="notranslate">std::string_view</code> 或 <code class="notranslate">absl::InlinedVector</code>）和 Google 内部库的抽象，Jeff 和 Sanjay 其实在反复向开发者传递几个非常底层的系统第一性原理：</p>
-</blockquote>
-<blockquote>
-<p>机械同理心与物理常识（Mechanical Sympathy）</p>
+<p>==机械同理心与物理常识（Mechanical Sympathy）==</p>
 <p>性能优化的尽头是硬件的物理实在。 文章中提到的“封底估算（Back-of-the-envelope calculations）”，本质上是要求工程师将 CPU 缓存、内存寻址、分支预测和总线带宽的开销转化为肌肉记忆。长文中大量篇幅讨论的紧凑数据结构、用数组索引代替 64 位指针、批量存储以及使用 Arena 内存池，核心目的只有一个：迎合 CPU 的缓存行（Cache Line）和预取机制。在现代体系结构下，频繁的内存分配和指针的跳跃（Pointer Chasing）是极度昂贵的。让数据在内存中紧凑、连续地排列，让底层硬件顺畅地跑满流水线，往往比纯粹数学意义上的时间复杂度优化更能带来实质性的飞跃。</p>
-</blockquote>
-<blockquote>
-<p>降低边界跨越的摩擦成本</p>
+<p>==降低边界跨越的摩擦成本==</p>
 <p>这集中体现在他们对 API 设计的建议上，比如大力推崇批量接口（Bulk APIs）和视图类型。无论是函数压栈、RPC 跨网络边界，还是互斥锁的获取，跨越系统边界都伴随着巨大的上下文开销。通过批量操作（例如一次加锁处理完所有引用，或者批量查询），可以极大地摊销（Amortize）系统在控制面上的决策成本。系统设计应该遵循极简原则：能一次性批处理完的控制流，就绝对不要让系统去做一万次微小的状态流转。</p>
-</blockquote>
 <blockquote>
 <p>利用非对称性：为常见场景修筑高速公路</p>
 <p>系统运行时的输入和状态从来都不是均匀分布的。文章中强调的“常见情况的快速路径（Fast paths）”就是利用了概率上的非对称性。如果 99% 的数据都是短字符串或单字节，或者绝大多数执行都不会遇到错误，那么就应该为这 99% 的常态修筑一条没有任何额外分配、判断极简的“高速公路”，而把那些繁琐的、需要深层检查的逻辑剥离出去，推迟到冷路径（Cold path）或尾调用中。这同时也是在提醒我们，警惕代码的“过度通用化”。</p>
