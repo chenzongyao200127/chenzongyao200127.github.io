@@ -1,3 +1,7 @@
+1. [Lua in the kernel? \[LWN.net\]](https://lwn.net/Articles/830154/)
+2. [GitHub - luainkernel/lunatik: Lunatik is a framework for scripting the Linux kernel with Lua. · GitHub](https://github.com/luainkernel/lunatik)
+3. [Fetching Title#uo2s](https://netbsd.org/~lneto/dls14.pdf)
+
 **作者：** Lourival Vieira Neto（The NetBSD Foundation）、Roberto Ierusalimschy（PUC-Rio 信息学系）、Ana Lúcia de Moura（PUC-Rio 信息学系）、Marc Balmer（The NetBSD Foundation）
 
 ---
