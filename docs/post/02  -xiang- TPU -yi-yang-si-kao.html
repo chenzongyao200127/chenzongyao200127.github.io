@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://github.githubassets.com/favicons/favicon.svg"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="> 原文链接：https://jax-ml.github.io/scaling-book/tpus/
+
+---
+
+### 目录
+
+* 什么是 TPU？
+* TPU 网络互联
+* 关键要点
+* TPU 规格参数
+* 练习题
+* 附录
+    * 附录 A: 更多关于 TPU 内部细节
+    * 附录 B: 脉动阵列是如何工作的？
+
+### 什么是 TPU？
+
+从根本上说，TPU 是一个专门用于矩阵乘法的计算核心（称为 **TensorCore**），连接着一堆高速内存（称为**高带宽内存**或 **HBM**）。">
+<meta property="og:title" content="02  像 TPU 一样思考">
+<meta property="og:description" content="> 原文链接：https://jax-ml.github.io/scaling-book/tpus/
+
+---
+
+### 目录
+
+* 什么是 TPU？
+* TPU 网络互联
+* 关键要点
+* TPU 规格参数
+* 练习题
+* 附录
+    * 附录 A: 更多关于 TPU 内部细节
+    * 附录 B: 脉动阵列是如何工作的？
+
+### 什么是 TPU？
+
+从根本上说，TPU 是一个专门用于矩阵乘法的计算核心（称为 **TensorCore**），连接着一堆高速内存（称为**高带宽内存**或 **HBM**）。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://chenzongyao200127.github.io/post/02%20%20-xiang-%20TPU%20-yi-yang-si-kao.html">
+<meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
+<title>02  像 TPU 一样思考</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">02  像 TPU 一样思考</h1>
+<div class="title-right">
+    <a href="https://chenzongyao200127.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/chenzongyao200127/chenzongyao200127.github.io/issues/21" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><blockquote>
+<p>原文链接：<a href="https://jax-ml.github.io/scaling-book/tpus/" rel="nofollow">https://jax-ml.github.io/scaling-book/tpus/</a></p>
+</blockquote>
+<hr>
+<h3>目录</h3>
+<ul>
+<li>什么是 TPU？</li>
+<li>TPU 网络互联</li>
+<li>关键要点</li>
+<li>TPU 规格参数</li>
+<li>练习题</li>
+<li>附录
+<ul>
+<li>附录 A: 更多关于 TPU 内部细节</li>
+<li>附录 B: 脉动阵列是如何工作的？</li>
+</ul>
+</li>
+</ul>
+<h3>什么是 TPU？</h3>
+<p>从根本上说，TPU 是一个专门用于矩阵乘法的计算核心（称为 <strong>TensorCore</strong>），连接着一堆高速内存（称为<strong>高带宽内存</strong>或 <strong>HBM</strong>）。</p>
+<p>下图展示了 TPU 芯片的基本组件。TensorCore 是左侧的灰色框，包含矩阵乘法单元 (<strong>MXU</strong>)、向量单元 (<strong>VPU</strong>) 和向量内存 (<strong>VMEM</strong>)。</p>
+<p>![[Pasted image 20251129220903.png]]</p>
+<p>你可以把 TensorCore 看作是一台非常擅长矩阵乘法的机器，但它还有其他几个值得注意的功能。TensorCore 有三个关键单元：</p>
+<ol>
+<li>
+<p>MXU (矩阵乘法单元)：这是 TensorCore 的核心。在大多数 TPU 世代中，它利用<strong>脉动阵列</strong>（详见附录 B），每 8 个时钟周期执行一次 <code class="notranslate">bfloat16[8,128] @ bf16[128,128] -&gt; f32[8,128]</code> 的矩阵乘法 <sup><a href="#user-content-fn-1-8884235886e0d9a7373b782f9c8d9b72" id="user-content-fnref-1-8884235886e0d9a7373b782f9c8d9b72" data-footnote-ref="" aria-describedby="footnote-label">1</a></sup>。</p>
+<ul>
+<li>在 TPU v5e 上（1.5GHz），这大约相当于每个 MXU 每秒 <code class="notranslate">5e13</code> 次 bf16 浮点运算 (FLOPs)。</li>
+<li>大多数 TensorCore 有 2 或 4 个 MXU，因此例如 TPU v5e 的总 bf16 FLOPs/s 为 <code class="notranslate">2e14</code>。</li>
+<li>TPU 还支持更高吞吐量的低精度矩阵乘法（例如，每个 TPU v5e 芯片每秒可执行 <code class="notranslate">4e14</code> 次 int8 操作）。</li>
+</ul>
+</li>
+<li>
+<p>VPU (向量处理单元)：执行通用的数学运算，如 ReLU 激活、逐点加法或向量间的乘法。规约（求和）也在这里执行。附录 A 提供了更多细节。</p>
+</li>
+<li>
+<p>VMEM (向量内存)：是位于 <code class="notranslate">TensorCore</code> 内部、靠近计算单元的片上暂存器 (scratchpad)。它比 HBM 小得多（例如，TPU v5e 上为 128 MiB），但到 MXU 的带宽要高得多。VMEM 的运作方式有点像 CPU 上的 L1/L2 缓存，但它更庞大且完全由程序员控制。HBM 中的数据需要先复制到 VMEM 中，TensorCore 才能对其进行计算。</p>
+</li>
+</ol>
+<hr>
+<p>TPU 在矩阵乘法方面非常、非常快。这是它们的主要工作，而且干得很好。<strong>TPU v5p</strong> 是迄今为止最强大的 TPU 之一，每个核心每秒可进行 <code class="notranslate">2.5e14</code> 次 bf16 FLOPs，或者每个芯片每秒 <code class="notranslate">5e14</code> 次。一个包含 8960 个芯片的 Pod 每秒可以进行 4 exaflops (百亿亿次) 的运算。这是<strong>非常强大</strong>的算力。这是世界上最强大的超级计算机之一。而 Google 拥有很多这样的计算机。[^2]</p>
+<p>上面的图还包括其他一些组件，如 <strong>SMEM</strong> 和 <strong>标量单元 (Scalar Unit)</strong>，用于处理控制流，在附录 A 中有简要讨论，但理解它们并不关键。另一方面，HBM 很重要且相当简单：</p>
+<ul>
+<li><strong>HBM (高带宽内存)</strong>：是一大块快速内存，存储供 TensorCore 使用的张量 (Tensors)。HBM 的容量通常在数十 GB 量级（例如，TPU v5e 有 16GiB HBM）。</li>
+<li>当计算需要时，张量会以流的方式从 HBM 通过 VMEM 进入 MXU，结果再从 VMEM 写回 HBM。</li>
+<li>HBM 和 TensorCore 之间（通过 VMEM）的带宽被称为“HBM 带宽”（通常在 1-2TB/sec 左右），它限制了内存受限 (memory-bound) 工作负载的计算速度。</li>
+</ul>
+<p><strong>通常，所有 TPU 操作都是流水线化 (pipelined) 且重叠 (overlapped) 的。</strong></p>
+<p>为了执行矩阵乘法 $X \cdot A \rightarrow Y$，TPU 首先需要将矩阵 $A$ 和 $X$ 的块 (chunks) 从 HBM 复制到 VMEM，然后将它们加载到 MXU 中（MXU 会对 $X$ 的 8x128 块和 $A$ 的 128x128 块进行乘法），最后将结果逐块复制回 HBM。</p>
+<p>为了高效地做到这一点，矩阵乘法是流水线化的，因此与 VMEM 的数据复制是与 MXU 的工作重叠进行的。这允许 MXU 继续工作而不是等待内存传输，从而保持矩阵乘法处于计算受限 (compute-bound) 状态，而不是内存受限。</p>
+<p>这是一个如何从 HBM 执行逐元素 (elementwise) 乘积的示例：</p>
+<p>![[pointwise-product 2.gif]]</p>
+<p>图：动画显示在 TPU 上执行逐点乘积，字节从 HBM 加载。</p>
+<p>注意字节是如何分块流出内存的，部分结果被流水线回传，而无需等待完整数组具体化。</p>
+<p>矩阵乘法看起来几乎一样，只是它会加载到 MXU 而不是 VPU / 向量单元，并且加载和存储的顺序会不同，因为同一个权重块会被用于多个激活块。你可以看到数据块流在 VMEM 中，然后进入 <strong>VREGs</strong> (向量寄存器)，然后进入向量单元，最后回到 VMEM 和 HBM。正如我们即将看到的，如果从 HBM 到 VMEM 的加载速度慢于向量单元（或 MXU）中的 FLOPs 速度，我们就变成了“带宽受限”，因为我们让 VPU 或 MXU 处于饥饿状态，没有工作可做。</p>
+<blockquote>
+<p>关键要点：TPU 非常简单。它们将权重从 HBM 加载到 VMEM，然后从 VMEM 加载到一个每秒可以执行约 200 万亿次乘加运算的脉动阵列。HBM $\leftrightarrow$ VMEM 和 VMEM $\leftrightarrow$ 脉动阵列 的带宽设定了 TPU 能高效执行哪些计算的基本限制。</p>
+</blockquote>
+<p>![[Pasted image 20251129221416.png]]</p>
+<p>VMEM 和算术强度：VMEM 比 HBM 小得多，但它到 MXU 的带宽要高得多。正如我们在第一部分看到的，这意味着如果一个算法能将其所有输入/输出放入 VMEM，它遇到通信瓶颈的可能性就会小得多。</p>
+<p>这在计算的算术强度较差时特别有用：VMEM 带宽大约是 HBM 带宽的 22 倍，这意味着一个从 VMEM 读取/写入的操作只需要 10-20 的算术强度即可达到峰值 FLOPs 利用率。这意味着如果我们能将权重放入 VMEM 而不是 HBM，我们的矩阵乘法可以在更小的 batch sizes 下达到 FLOPs 受限状态。这也意味着那些本质上算术强度较低的算法仍然可以是高效的。只是 VMEM 太小了，这通常是一个挑战。[^3]</p>
+<ul>
+<li>一个 TPU 芯片通常（但不总是）由两个 TPU 核心组成，它们共享内存，可以被视为一个具有两倍 FLOPs 的大型加速器（称为“Megacore”配置）。这从 TPU v4 开始就是如此。旧的 TPU 芯片有独立的内存，被视为两个独立的加速器（TPU v3 及更早版本）。像 TPU v5e 这样的推理优化芯片每个芯片只有一个 TPU 核心。</li>
+</ul>
+<p>![[Pasted image 20251129221344.png]]</p>
+<ul>
+<li><strong>芯片</strong> 通常以 4 个一组排列在“托盘 (tray)”上，通过 PCIe 网络连接到 CPU 主机。这是大多数读者熟悉的格式：4 个芯片（8 个核心，尽管通常被视为 4 个逻辑 Megacores）通过 Colab 或单个 TPU-VM 暴露出来。对于像 TPU v5e 这样的推理芯片，每个主机有 2 个托盘而不是 1 个，但每个芯片只有 1 个核心，给我们 8 个芯片 = 8 个核心。[^4]</li>
+</ul>
+<p>![[Pasted image 20251129221335.png]]</p>
+<p>PCIe 带宽是有限的：就像 HBM &lt;-&gt; VMEM 链路一样，CPU &lt;-&gt; HBM 的 PCIe 连接也有特定的带宽，限制了你从主机内存加载到 HBM 或反之亦然的速度。例如，TPU v4 的 PCIe 带宽每个方向为 16GB/s，比 HBM 慢近 100 倍。我们可以将数据加载/卸载到主机 (CPU) RAM 中，但这并不快。</p>
+<hr>
+<h3>TPU 互联</h3>
+<p>芯片在 Pod 中通过 <strong>ICI</strong> 网络相互连接。在老一代（TPU v2 和 TPU v3）、推理芯片（如 TPU v5e）和 Trillium (TPU v6e) 中，ICI (“芯片间互联”) 连接最近的 4 个邻居（带有边缘链路以形成 2D 环面）。TPU v4 和 TPU v5p 连接到最近的 6 个邻居（形成 3D 环面）。注意这些连接<strong>不</strong>经过它们的主机，它们是芯片间的直接链路。</p>
+<p>![[Pasted image 20251129222652.png]]</p>
+<p>环面 (Toroidal) 结构将任意两个节点之间的最大距离从 $N$ 减少到 $N/2$，使通信更快。TPU 还有一个“扭曲环面 (twisted torus)”配置，将环面 包裹在类似莫比乌斯带的拓扑中，以进一步减少节点间的平均距离。</p>
+<p>TPU Pods（通过 ICI 连接）可以变得非常大：最大 Pod 大小（称为 superpod）对于 TPU v4 是 <strong>16x16x16</strong>，对于 TPU v5p 是 <strong>16x20x28</strong>。这些大型 Pod 由 <strong>4x4x4</strong> 芯片的可重构立方体组成，通过<strong>光学环绕链路</strong> [^5] 连接，我们可以重新配置它们以连接非常大的拓扑结构。</p>
+<p>![[Pasted image 20251129222717.png]]</p>
+<p>也可以请求较小的拓扑结构（例如 2x2x1, 2x2x2），尽管没有环绕链路。这是一个重要的注意事项，因为它通常会使大多数通信的时间加倍。任何完整立方体的倍数（例如 4x4x4 或 4x4x8）都将具有由光学开关提供的环绕链路。[^6]</p>
+<p>![[Pasted image 20251129222850.png]]</p>
+<p>TPU v5e 和 Trillium Pods 由单个 <strong>16x16</strong> 2D 环面组成，在任何大小为 16 的轴上都有环绕（意味着 8x16 在长轴上有环绕）。TPU v5e 和 v6e (Trillium) 不能扩展超过 16x16 环面，但 Pods 之间仍然可以通过标准数据中心网络 (DCN) 通信，DCN 连接着 TPU 主机。同样，如果请求维度 &lt;16 的较小拓扑，则没有环绕链路。</p>
+<p>![[Pasted image 20251129222901.png]]</p>
+<p>这种最近邻连接是 TPU 和 GPU 之间的一个关键区别。GPU 使用分层交换机连接，近似于每个 GPU 之间的点对点连接，而不是像 TPU 那样使用本地连接。通常，一个节点内的 GPU（H100 为 8 个 GPU，B200 NVLink72 多达 72 个）是直接连接的，而更大的拓扑结构需要在每个 GPU 之间进行 $O(\log(N))$ 跳。一方面，这意味着 GPU 可以在少量跳数内发送任意数据。另一方面，TPU 便宜得多（因为 NVLink 交换机很贵），接线更简单，并且可以扩展到更大的拓扑结构，因为每个设备的链路数量和每个设备的带宽是恒定的。在此处阅读更多内容。</p>
+<p>ICI 相对于 DCN 非常快，但仍慢于 HBM 带宽。例如，一个 TPU v5p 拥有：</p>
+<ul>
+<li>每个芯片 <code class="notranslate">2.5e12</code> bytes/s (2.5 TB/s) 的 HBM 带宽。</li>
+<li>每个轴 <code class="notranslate">9e10</code> bytes/s (90 GB/s) 的 ICI 带宽，每个芯片有 3 个轴。[^7]</li>
+<li>每个 TPU <code class="notranslate">6.25e9</code> bytes/s (6.25 GB/s) 的 DCN (出口) 带宽（通过每个主机上的 1-2 个 NIC）。[^8]</li>
+</ul>
+<p>这意味着当我们跨多个芯片分割模型时，我们需要小心避免用较慢的跨设备通信成为 MXU 的瓶颈。</p>
+<p>多切片 (Multi-slice) 训练：一组通过 ICI 连接的 TPU 称为一个 <strong>slice</strong> (切片)。不同的 slice 可以通过 DCN 相互连接，例如连接不同 Pod 上的 slice。由于 DCN 是比 ICI 慢得多的连接，我们应该尽量限制计算等待来自 DCN 数据的时间。</p>
+<p>DCN 是主机对主机的，所以要通过 DCN 将缓冲区从 TPU 传输到 TPU，我们需要先通过 PCIe 传输到主机，然后通过网络出口，再通过目标主机网络入口，最后通过 PCIe 进入 HBM。</p>
+<hr>
+<p>TPU 芯片在 Pod 内部通过 <strong>ICI (Inter-Chip Interconnects)</strong> 网络互联。</p>
+<ul>
+<li>拓扑结构：
+<ul>
+<li>TPU v2/v3/v5e/v6e：连接最近的 4 个邻居（2D Torus）。</li>
+<li>TPU v4/v5p：连接最近的 6 个邻居（3D Torus）。</li>
+<li>关键点：这些连接不经过 CPU 主机，是芯片间的直连。</li>
+</ul>
+</li>
+<li>环面（Torus）结构：将节点间的最大距离从 $N$ 降低到 $N/2$。</li>
+<li>光学开关（Optical Switching）：大型 Pod（Superpod）通过可重构的光学链路连接，允许动态配置拓扑结构（如 4x4x4 立方体）。</li>
+</ul>
+<p>TPU vs GPU 网络差异：</p>
+<ul>
+<li>GPU：通常使用分层交换机架构（NVLink Switch / InfiniBand），近似于点对点连接。适合处理任意节点间的通信，但交换机成本高昂。</li>
+<li>TPU：采用最近邻（Nearest-neighbor）连接。布线简单，成本低，且随着规模扩大，每设备的带宽保持恒定，易于扩展到极大拓扑。但在切片内远距离通信需要“跳跃”中间节点。</li>
+</ul>
+<blockquote>
+<p>NVLink Switch 是什么？</p>
+</blockquote>
+<p>带宽层级：</p>
+<ol>
+<li>HBM 带宽：~ 2.5 TB/s (最快)</li>
+<li>ICI 带宽：~ 90 GB/s (芯片间互联)</li>
+<li>PCIe 带宽：~ 16 GB/s (主机到芯片，很慢)</li>
+<li>DCN 带宽 (Data Center Network)：~ 6 GB/s (跨主机/跨 Pod，最慢)</li>
+</ol>
+<blockquote>
+<p>扩展策略：<br>
+当我们将模型切分到多个芯片时，必须小心避免让 MXU 等待慢速的跨设备通信。通信量必须与该通道的物理带宽成正比。</p>
+</blockquote>
+<p>[[TPU Networking 通俗解释]]</p>
+<hr>
+<h3>关键要点</h3>
+<ul>
+<li>
+<p>TPU 很简单，在大多数情况下可以被认为是一个连接到内存（超快）、通过 ICI 连接到其他芯片（相当快）以及通过 DCN 连接到数据中心其余部分（有点快）的矩阵乘法单元。</p>
+</li>
+<li>
+<p>通信受限于我们的各种网络带宽，按速度排序：</p>
+<ul>
+<li>HBM 带宽：在 TensorCore 和其关联的 HBM 之间。</li>
+<li>ICI 带宽：在 TPU 芯片及其最近的 4 或 6 个邻居之间。</li>
+<li>PCIe 带宽：在 CPU 主机及其关联的芯片托盘之间。</li>
+<li>DCN 带宽：在多个 CPU 主机之间，通常是未通过 ICI 连接的主机。</li>
+</ul>
+</li>
+<li>
+<p>在一个 slice 内，TPU 仅通过 ICI 连接到其最近的邻居。这意味着 slice 中远距离芯片之间的 ICI 通信需要先跳过中间的芯片。</p>
+</li>
+<li>
+<p>权重矩阵需要填充 (padded) 到至少 128 (TPU v6 为 256) 的大小，且在两个维度上都要填充以填满 MXU（实际上，较小的轴会被填充到 128）。</p>
+</li>
+</ul>
+<blockquote>
+<p>这句话是什么意思？<br>
+TPU 是吞吐量怪兽，但它有很高的“启动门槛”。如果你喂给它的数据块（Batch Size 或 Hidden Dimension）小于 128，TPU 就会被迫通过补零来“空转”。</p>
+</blockquote>
+<ul>
+<li>
+<p>低精度矩阵乘法往往更快。对于支持它的世代，TPU 可以执行比 bfloat16 FLOPs 快大约 2x/4x 的 int8 或 int4 FLOPs。VPU 操作仍然以 fp32 执行。</p>
+</li>
+<li>
+<p>为了避免成为 TPU 计算单元的瓶颈，我们需要确保通过每个通道的通信量与其速度成正比。</p>
+</li>
+</ul>
+<hr>
+<h3>TPU 规格参数</h3>
+<p>以下是 TPU 芯片的一些具体数字：</p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th align="left">型号</th>
+<th align="left">Pod 大小</th>
+<th align="left">主机大小</th>
+<th align="left">HBM 容量/芯片</th>
+<th align="left">HBM 带宽/芯片 (bytes/s)</th>
+<th align="left">FLOPs/s/芯片 (bf16)</th>
+<th align="left">FLOPs/s/芯片 (int8)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><strong>TPU v3</strong></td>
+<td align="left">32x32</td>
+<td align="left">4x2</td>
+<td align="left">32GB</td>
+<td align="left">9.0e11</td>
+<td align="left">1.4e14</td>
+<td align="left">1.4e14</td>
+</tr>
+<tr>
+<td align="left"><strong>TPU v4p</strong></td>
+<td align="left">16x16x16</td>
+<td align="left">2x2x1</td>
+<td align="left">32GB</td>
+<td align="left">1.2e12</td>
+<td align="left">2.75e14</td>
+<td align="left">2.75e14</td>
+</tr>
+<tr>
+<td align="left"><strong>TPU v5p</strong></td>
+<td align="left">16x20x28</td>
+<td align="left">2x2x1</td>
+<td align="left">96GB</td>
+<td align="left">2.8e12</td>
+<td align="left">4.59e14</td>
+<td align="left">9.18e14</td>
+</tr>
+<tr>
+<td align="left"><strong>TPU v5e</strong></td>
+<td align="left">16x16</td>
+<td align="left">4x2</td>
+<td align="left">16GB</td>
+<td align="left">8.1e11</td>
+<td align="left">1.97e14</td>
+<td align="left">3.94e14</td>
+</tr>
+<tr>
+<td align="left"><strong>TPU v6e</strong></td>
+<td align="left">16x16</td>
+<td align="left">4x2</td>
+<td align="left">32GB</td>
+<td align="left">1.6e12</td>
+<td align="left">9.20e14</td>
+<td align="left">1.84e15</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<blockquote>
+<p>截止现在 v7e 已经出了</p>
+</blockquote>
+<p>主机大小指的是连接到单个主机的 TPU 拓扑（例如，TPU v5e 有一个连接到 8 个 TPU 的单个 CPU 主机，采用 4x2 拓扑）。</p>
+<p>以下是互联数据：</p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th align="left">型号</th>
+<th align="left">ICI 带宽/链路 (单向, bytes/s)</th>
+<th align="left">ICI 带宽/链路 (双向, bytes/s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><strong>TPU v3</strong></td>
+<td align="left">1e11</td>
+<td align="left">2e11</td>
+</tr>
+<tr>
+<td align="left"><strong>TPU v4p</strong></td>
+<td align="left">4.5e10</td>
+<td align="left">9e10</td>
+</tr>
+<tr>
+<td align="left"><strong>TPU v5p</strong></td>
+<td align="left">9e10</td>
+<td align="left">1.8e11</td>
+</tr>
+<tr>
+<td align="left"><strong>TPU v5e</strong></td>
+<td align="left">4.5e10</td>
+<td align="left">9e10</td>
+</tr>
+<tr>
+<td align="left"><strong>TPU v6e</strong></td>
+<td align="left">9e10</td>
+<td align="left">1.8e11</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p>我们包含单向带宽和双向 (bidi) 带宽，因为单向带宽更符合硬件实际，但双向带宽在涉及完整环的方程中更常出现。[9]</p>
+<p>PCIe 带宽通常约为每个 TPU <code class="notranslate">1.6e10</code> bytes/s (TPU v6e 为 <code class="notranslate">3.2e10</code>)，而 DCN 带宽通常约为每个 TPU <code class="notranslate">6.25e9</code> bytes/s (TPU v6e 为 <code class="notranslate">12.5e9</code>，TPU v5e 为 <code class="notranslate">3.125e9</code>)。</p>
+<hr>
+<h3>练习题 (Worked Problems)</h3>
+<p>这些数字有点枯燥，但它们让你能够对模型性能进行基本的 Roofline 估算。让我们做几个练习来解释为什么这很有用。你将在第三部分看到更多例子。</p>
+<h4>问题 1 [估算 LLM 延迟]:</h4>
+<p>假设你想从分布在 32 个 TPU v4p 上的 200B 参数模型（bf16）中进行采样。将所有参数从 HBM 加载到脉动阵列需要多长时间？ 提示：使用上面的数字。</p>
+<blockquote>
+<p>我理解 sizeof(bf16) * 200B / 32 / 1.2e12<br>
+我们在 32 个芯片上加载 <code class="notranslate">sizeof(bf16) * 200e9 = 400e9</code> 字节，意味着每个芯片 12.5e9 字节，每个芯片的 HBM 带宽为 1.23e12。所以加载大约需要 10ms。<br>
+这很酷，因为这是从模型采样的延迟的一个合理的下限。每个采样步骤都需要从 HBM 加载所有参数，所以它不可能少于 10 ms。实际上，在小 batch sizes 下，这接近于可实现的数值。</p>
+</blockquote>
+<h4>问题 2 [TPU 细节]:</h4>
+<p>考虑一个完整的 TPU v5e pod。总共有多少个 CPU 主机？有多少个 TPU TensorCores？整个 pod 的总 FLOPs/s 是多少？总 HBM 是多少？对 TPU v5p pod 做同样的练习。</p>
+<blockquote>
+<p>TPU v5e pod 不是 TPU 的集合吗？为什么会涉及到 CPU 呢，这里的主机到底是什么概念<br>
+pod 难道是机器集群的意思吗？<br>
+对于 TPU v5e，每个 pod 是 <code class="notranslate">16x16</code>，每个主机是 4x2 slice，所以我们有 <code class="notranslate">16*16 / 8 = 32</code> 个主机。对于 TPU v5e，每个 TPU 只有一个核心，所以我们有 256 个 TensorCores。bfloat16 下的总 FLOPs/s 是 <code class="notranslate">16*16*2e14 = 5.1e16</code>。每个芯片有 16GB HBM，所以总共有 <code class="notranslate">256 * 16 = 4TB</code> 内存。</p>
+<p>对于一个完整的 TPU v5p pod，我们有 <code class="notranslate">16x20x28</code> 个芯片，每个主机是 2x2x1，所以我们有 <code class="notranslate">16*20*28 / 2*2 = 2,240</code> 个主机。对于 TPU v5p，每个 TPU 有两个 TensorCores，所以我们有 <code class="notranslate">8960 * 2 = 17,920</code> 个核心。bfloat16 下的总 FLOPs/s 是 <code class="notranslate">8960 * 4.5e14 = 4e18</code>。每个芯片有 96GB HBM，所以总共有 <code class="notranslate">8960 * 96 = 860TB</code> 内存。</p>
+<p>Pod 是 Google 数据中心里的一个物理部署单位。你可以把它想象成一整排（或几排）专用的机柜。<br>
+特点：在一个 Pod 里的所有 TPU 芯片，都通过 ICI（那个专用的高速互联网络）物理连接在一起了。<br>
+关键点：Pod 定义了“最大连通域”。同一个 Pod 里的 TPU 可以直接“聊天”（通过 ICI）。Pod A 的 TPU 想和 Pod B 的 TPU 聊天，必须走慢速的公网（DCN），经过 Host 的 CPU 和网卡转发。</p>
+<p>对于 TPU v5e Pod：文案里说它是 <code class="notranslate">16x16</code>。意思是这个 Pod 里的 TPU 芯片排列成一个 $16 \times 16$ 的二维网格。总芯片数：$16 \times 16 = 256$ 颗 TPU 芯片。这 256 颗芯片被物理安装在若干台 Host 服务器里。</p>
+</blockquote>
+<p>让我们来拆解这句让你困惑的话：</p>
+<blockquote>
+<p>“对于 TPU v5e，每个 pod 是 16x16，每个主机是 4x2 slice，所以我们有 16*16 / 8 = 32 个主机。”</p>
+</blockquote>
+<p>这其实是在算物理服务器的数量。</p>
+<p>A. 单台 Host 的物理配置 (The Atomic Unit)</p>
+<p>对于 TPU v5e 这一代硬件，Google 设计的主板结构是这样的：</p>
+<ul>
+<li>1 台服务器 (Host) 插了 8 块 TPU 芯片。</li>
+<li>这 8 块芯片在物理上已经连接成了一个小的 4x2 网格（长 4，宽 2）。注意：这里把单台机器管理的 TPU 拓扑称为 "4x2 slice"，这是物理上的硬连接。</li>
+</ul>
+<p>B. 整个 Pod 的规模</p>
+<ul>
+<li>Pod 规模：16x16 网格（共 256 颗芯片）。</li>
+</ul>
+<p>C. 需要多少台服务器？</p>
+<p>如果你要拼出一个 256 颗芯片的大网格，而你手里的“积木块”（Host）每块包含 8 颗芯片。<br>
+你需要多少块积木？</p>
+<p>$$\text{Host Count} = \frac{\text{Total Chips in Pod}}{\text{Chips per Host}}$$<br>
+$$\text{Host Count} = \frac{256}{8} = 32 \text{ 台服务器}$$<br>
+物理画面感：</p>
+<p>走进机房，你会看到 32 台服务器。</p>
+<ul>
+<li>每台服务器里有 8 个 TPU。</li>
+<li>这 32 台服务器之间，除了普通的网线（DCN），屁股后面还插着密密麻麻的铜缆/光纤（ICI），把那 256 个 TPU 连成了一张大网。</li>
+</ul>
+<h4>问题 3 [PCIe 运算强度]:</h4>
+<p>想象我们被迫在主机 DRAM 中存储一个大的权重矩阵 $A$ (类型 <code class="notranslate">bfloat16[D,F]</code>) 和一批激活值 $x$ (类型 <code class="notranslate">bfloat16[B,D]</code>)，并想对它们进行矩阵乘法。这是在单个主机上运行的，我们使用连接到它的单个 TPU v6e 芯片。你可以假设 $B \ll D$，并且 $F=4D$（我们将在以后的章节中看到为什么这些是合理的假设）。为了保持在 PCIe 上 FLOPs 受限 (FLOPs bound)，我们需要多大的最小 batch size $B$？假设 PCIe 带宽为 1.5e10 bytes/s。</p>
+<blockquote>
+<p>权重矩阵 激活值 分别是什么？<br>
+什么叫做为了保持在 PCIe 上 FLOPs 受限 (FLOPs bound) 「这是计算受限的意思吗？」<br>
+计算量 (FLOPs)：$2 \times B \times D \times (4D) = 8 B D^2$。<br>
+计算时间：$8 B D^2 / 9.2e14$ 秒。</p>
+</blockquote>
+<p>![[Pasted image 20251130115024.png]]</p>
+<blockquote>
+<p>数据传输量：主要由权重 $A$ 决定（因为 $B$ 很小），大小为 $2 \times D \times 4D = 8D^2$ bytes。<br>
+传输时间：$8D^2 / 1.5e10$ 秒。</p>
+<p>平衡点：计算时间 &gt; 传输时间 $$\frac{8 B D^2}{9.2 \times 10^{14}} &amp;gt; \frac{8 D^2}{1.5 \times 10^{10}}$$$$\frac{B}{9.2 \times 10^{14}} &gt; \frac{1}{1.5 \times 10^{10}}$$$$B &gt; \frac{9.2 \times 10^{14}}{1.5 \times 10^{10}} \approx 61333$$<br>
+结论：这非常反直觉。通过 PCIe 传输权重极慢，你需要极大的 Batch Size 才能掩盖传输延迟。<br>
+==这就是为什么我们要把权重常驻 HBM==。</p>
+</blockquote>
+<h4>问题 4 [通用矩阵乘法延迟]:</h4>
+<p>假设我们想将一个 <code class="notranslate">int8[16384, 4096]</code> 的权重矩阵乘以一个大小为 <code class="notranslate">int8[B, 4096]</code> 的激活矩阵，其中 B 是某个未知的 batch size。<br>
+假设我们开始是在 1 个 TPUv5e 上。作为一个关于 B 的函数，这个乘法需要多长时间？<br>
+提示：计算从 HBM 加载数组需要多长时间以及乘法实际需要多长时间可能会有所帮助。哪个是瓶颈？<br>
+如果我们想在 VMEM 中运行此操作怎么办？作为一个关于 B 的函数，它需要多长时间？</p>
+<blockquote>
+<p>(1) 我们需要执行的浮点运算次数是 $2 \cdot 16384 \cdot 4096 \cdot B \approx 1.34e8 \cdot B$。所以 $1.34e8 \cdot B / 3.94e14 \approx 3.4e^{-7} \cdot B$ 秒。<br>
+我们需要从 HBM 加载 $16384 \cdot 4096 + B \cdot 4096$ 字节到 VMEM，并从 VMEM 写回 $B \cdot 16384$ 字节到 HBM。这意味着 $(6.7e7 + 20480 \cdot B) / 8.1e11 \approx 8.2e^{-5} + 2.5e^{-8} \cdot B$ 秒。假设通信和计算尽可能多地重叠，整个乘法将花费大约</p>
+</blockquote>
+<p>$$\max(3.4e^{-7} \cdot B, 8.2e^{-5} + 2.5e^{-8} \cdot B)$$</p>
+<blockquote>
+<p>当 $3.4e^{-7} \cdot B &amp;gt; 8.2e^{-5}$，或者等价地 $B &amp;gt; 240$ 时，我们将是 FLOPs 受限的。这比我们在下面得出的 240 数字略大，因为我们考虑了 $x$ 和 $y$ 加载/存储的全部影响。</p>
+</blockquote>
+<blockquote>
+<p>(2) 如果相反我们是从 VMEM 加载，让我们把 VMEM 到 MXU 的带宽视为 HBM $\leftrightarrow$ VMEM 带宽的 22 倍。这将我们的数据加载分母从 8.1e11 变为 1.78e13，我们得到 $B &amp;gt; 11$。注意在实践中，我们不能将所有的 VMEM 带宽都用于加载 $W$，所以在实践中它会接近 20。</p>
+</blockquote>
+<h4>问题 5 [ICI 带宽]:</h4>
+<p>假设我们有一个 TPU v5e <code class="notranslate">4x4</code> slice。假设我们想把一个类型为 <code class="notranslate">bfloat16[8, 128, 8192]</code> 的数组从 <code class="notranslate">TPU{0,0}</code> 发送到 <code class="notranslate">TPU{3, 3}</code>。假设 TPU v5e 的每跳延迟是 $1\mu s$。<br>
+第一个字节多久会到达目的地？<br>
+总传输需要多长时间？</p>
+<blockquote>
+<p>答案: 在 TPUv5e 中我们有 2D 连接。因为我们只有 4x4 slice（没有大小为 16 的轴），我们没有环绕连接。因此我们的目标芯片有两个端口可以接收数据，同样源芯片也有两个端口可以发送数据。</p>
+<p>我们要传输的数据量是 <code class="notranslate">2 * 8 * 128 * 8192 = 1.7e7</code> 字节。我们可以同时从两个端口传输（即发送一半数组向右，一半向下），所以我们得到每秒传输 <code class="notranslate">2 * 4.5e10 = 9e10</code> 字节，这意味着大约需要 <code class="notranslate">1.7e7 / 9e10 = 188us</code> 来传输整个数组（假设我们是带宽受限的）。</p>
+<p>在一个 4x4 slice 中，我们在芯片 (0,0) 和 (3,3) 之间有六跳，因为对于少于 16 个芯片的轴没有环绕链路。由于每跳的延迟大约是 $1\mu s$，第一个字节将在大约 $6\mu s$ 内到达，总传输将花费 188us。</p>
+</blockquote>
+<p>![[Pasted image 20251130164537.png]]</p>
+<h4>问题 6 [综合运用] 「困难」:</h4>
+<p>想象你有一个大的矩阵 $A$: <code class="notranslate">int8[128 * 1024, 128 * 1024]</code> 均匀分片在一个 TPU v5e 4x4 slice 上，但卸载到了每个芯片的主机 DRAM 上。假设你想把整个数组复制到 <code class="notranslate">TPU{0, 0}</code> 并将其乘以一个向量 <code class="notranslate">bf16[8, 128 * 1024]</code>。这将需要多长时间？ 提示：使用上面的数字。</p>
+<blockquote>
+<p>什么叫做 「矩阵均匀分片」？<br>
+什么叫做 「卸载到了每个芯片的主机 DRAM 上」？</p>
+<p>均匀分片 = 数据被打散存储在 16 个节点上。<br>
+卸载到 DRAM = 数据在冷存储（Host Memory）里，不在热存储（HBM）里。</p>
+</blockquote>
+<hr>
+<h3>附录 A: 更多关于 TPU 内部细节</h3>
+<p>在这里我们将更深入地研究 TPU 的内部操作。除非另有说明，我们将提供 TPU v5p 的规格。</p>
+<h4>VPU (向量处理单元)</h4>
+<p>VPU 是 TPU 的向量算术核心。VPU 由一个二维 SIMD 向量机（即 <strong>VPU</strong>）和一组称为 <strong>VREGs</strong> 的向量寄存器组成，VPU 执行逐元素算术操作，如 vadd（向量加法）或 vmax（逐元素最大值），VREGs 保存 VPU 和 MXU 的数据。</p>
+<ul>
+<li>VREGs（向量寄存器组）: 每个 TPU v5p 核心有 64 个 32 位 VREGs（TPU v4 中为 32 个），这使每个核心总共有大约 <code class="notranslate">64 * 8 * 128 * 4 = 256kB</code> 的 VREG 内存（或者是整个芯片的 2 倍，因为我们有两个核心）。TPU v5p 每个周期可以从 VMEM 加载 3 个寄存器，并每个周期向 VMEM 写入 1 个寄存器。</li>
+</ul>
+<blockquote>
+<p>在 x86/ARM 中，你熟悉的 SIMD 寄存器（如 AVX-512 的 <code class="notranslate">zmm0</code>）是一个 512-bit 的一维数组（存 16 个 float）但在 TPU v5p 中，一个 VREG（向量寄存器）不是一维的，而是二维的。<br>
+物理形状：<code class="notranslate">8 (Sublane) x 128 (Lane)</code>。<br>
+单个寄存器大小：$8 \times 128 \times 4 \text{ bytes (f32)} = 4 \text{ KB}$。<br>
+总量：每个核心有 64 个这样的寄存器。总大小 $64 \times 4 \text{ KB} = 256 \text{ KB}$。<br>
+把 VREG 想象成一个芯片内的 L0 Cache。它非常大，而且带宽极高（每周期 3 读 1 写）。这意味着 VPU 指令（如 vadd）一次性操作的不是 1 个数，也不是 16 个数，而是 1024 个数（8x128）。这体现了 TPU 用空间换时间的设计哲学。</p>
+</blockquote>
+<ul>
+<li>VPU: VPU 是一个形状为 <code class="notranslate">(8, 128)</code> 的 2D 向量算术单元，其中 128 维度称为 lane 轴，8 维度称为 sublane 轴。v5 上的每对 (lane, sublane) 包含 4 个标准的浮点 ALU，彼此独立。</li>
+<li>VPU 在其每个 ALU 中在一个周期内执行大多数算术指令（如 vadd 或向量加法），延迟为 2 个周期，因此例如在 v5 中，你可以在每个周期将 4 对 f32 值从 VREGs 相加。</li>
+<li>典型的 VPU 指令可能看起来像 <code class="notranslate">{v2 = vadd.8x128.f32 v0, v1}</code>，其中 v0 和 v1 是输入 VREGs，v2 是输出 VREG。</li>
+</ul>
+<blockquote>
+<p>这里提到的 (8, 128) 维度非常关键，这决定了编程模型和通信成本。Lane (128 维)：这是主并行轴。你可以把它想象成 128 个独立的“工位”。Sublane (8 维)：这是次级并行轴。每个工位上坐着 8 个“工人”。<br>
+ALU 密度：在每个 (Lane, Sublane) 点上，实际上有 4 个独立的 ALU。<br>
+指令级并行 (ILP)： 文中提到 “一个周期内处理 1 个 vadd 和 1 个 vsub”。 这意味着 VPU 采用了类似 VLIW（超长指令字） 的设计。 在一个时钟周期内，编译器可以打包多条指令，同时利用那 4 个 ALU。 比如：<br>
+ALU 0: 计算 vREG1 + vREG2<br>
+ALU 1: 计算 vREG3 - vREG4<br>
+ALU 2 &amp; 3: 空闲</p>
+</blockquote>
+<p>所有 lanes 和 sublanes 每个周期都以纯 SIMD 方式执行相同的程序，但每个 ALU 可以执行不同的操作。所以我们可以例如在一个周期内处理 1 个 vadd 和 1 个 vsub，每一个都操作两个完整的 VREGs 并将输出写入第三个。</p>
+<blockquote>
+<p>SIMD 单指令多数据</p>
+</blockquote>
+<h5>突击测验 [计算 VPU 吞吐量]</h5>
+<p>使用上述信息，计算一个 TPU v5p 可以执行多少向量 FLOPs/s。TPU v5p 的时钟速度约为 1.75GHz。</p>
+<p>已知条件：</p>
+<ul>
+<li>芯片结构：1 个 TPU v5p 芯片 = 2 个 Core（Megacore 架构）。</li>
+<li>单核并行度：Grid 大小：$8 \times 128 = 1024$ 个位置。</li>
+<li>每个位置的 ALU 数：4 个。</li>
+<li>单核每周期指令数：$1024 \times 4 = 4096$ 次浮点操作（这里假设每条指令对应 1 FLOP，如果是 FMA 可能是 2 FLOPs，但文中逻辑似乎按指令算）。</li>
+<li>频率：1.75 GHz ($1.75 \times 10^9$ cycles/s)。</li>
+</ul>
+<p>计算过程：<br>
+$$\text{Total FLOPs/s} = (\text{Cores}) \times (\text{Grid Size}) \times (\text{ALUs/Grid}) \times (\text{Frequency})$$$$\text{Total FLOPs/s} = 2 \times (8 \times 128) \times 4 \times 1.75 \times 10^9$$$$\text{Total FLOPs/s} = 2 \times 1024 \times 4 \times 1.75 \times 10^9$$$$\text{Total FLOPs/s} = 8192 \times 1.75 \times 10^9 \approx 14,336 \times 10^9 \approx 14.3 \text{ TFLOPS}$$<br>
+对比：MXU（矩阵单元）的算力高达 459 TFLOPS。这里会发现 VPU 的算力（14T）只有 MXU 的 3% 左右。结论：TPU 严重偏科。它极其擅长矩阵乘法，但如果你用它做大量复杂的通用向量运算（在 VPU 上跑），性能会暴跌。</p>
+<p>规约 (Reductions): 通常，跨 sublane 维度的通信或规约比跨 lane 维度更容易。</p>
+<p>例如，VPU 支持一种 intra-lane shuffle 操作，可以在大约一个周期内在大小为 8 的轴上滚动。这可以用来沿 sublane 维度执行高效的规约（只需 shuffle 4, 2, 和 1 并做 3 对逐元素求和）。</p>
+<blockquote>
+<p>规约是什么？<br>
+可以类比函数式编程中的 Reduce 操作<br>
+底层实现的痛苦： 对于 SIMD 硬件，加法（Map） 是极其快乐的： <code class="notranslate">c[i] = a[i] + b[i]</code>。每个 i 互不干扰，完全并行。<br>
+但 规约（Reduce） 是痛苦的： <code class="notranslate">sum = a[0] + a[1] + … + a[N]</code>。 这包含数据依赖。你必须拿到前一步的结果才能加下一个。为了并行，通常使用树状归约（Tree Reduction）（两两相加，然后再两两相加），但这需要数据在不同的 ALU 之间移动。</p>
+</blockquote>
+<p>跨 lane 规约要困难得多，涉及一个单独的硬件单元称为 XLU 或“跨 lane 单元”，它很慢且相当昂贵。</p>
+<blockquote>
+<p>为什么跨纬度规约这么难呢？</p>
+<p>场景：你要把 Sublane 维度（大小为 8）的 8 个数加起来。 物理含义：这 8 个数都在同一个“工位”上，只是属于不同的“工人”。他们坐得很近。 实现：Shuffle（洗牌）操作<br>
+Shift 4: 前 4 个工人把数据递给后 4 个。相加。 （现在剩下 4 个有效数据）<br>
+Shift 2: 再递给后 2 个。相加。 （剩下 2 个）<br>
+Shift 1: 再递给最后 1 个。相加。 （剩下 1 个结果） 耗时：仅需约 1-3 个时钟周期。因为连线短，不需要复杂的路由。</p>
+<p>场景：你要把 Lane 维度（大小为 128）的 128 个数加起来。 物理含义：这 128 个数分布在 128 个不同的工位上，物理距离可能跨越了半个芯片核心。 瓶颈：工位 0 不能直接把数据给工位 127。必须通过 XLU (Cross Lane Unit)。这是一个专门的硬件路由器，类似于芯片内部的“总线”或“交换机”。耗时：非常慢，且昂贵。</p>
+<p>程序员的启示（Optimization Tip）： 如果你在写 TPU 的 Kernel（比如用 JAX/Triton）：<br>
+尽可能沿着 Sublane (8) 维度做 Sum/Max。<br>
+极力避免沿着 Lane (128) 维度做 Sum/Max。 如果非要做，编译器可能会通过转置（Transpose）把数据换个方向，但这也很慢。</p>
+</blockquote>
+<p>与 GPU 的比较: 对于那些熟悉 NVIDIA GPU 的人来说，VPU 中的每个 ALU 类似于一个 CUDA 核心，单个 VPU lane 类似于一个“Warp Scheduler”，即通常执行 SIMD 算术的 32 个 CUDA 核心的集合。Lane 内的规约相当容易，但如果我们需要跨 lane，我们需要通过至少 VMEM/XLU/SMEM，这要慢得多。</p>
+<blockquote>
+<p>可惜我不熟悉 GPU</p>
+</blockquote>
+<p>更多细节请参阅 [GPU 章节]。</p>
+<h4><strong>标量核心 (Scalar Core)</strong></h4>
+<p>标量核心是 TPU 的控制单元。它获取并分发所有指令并执行从 HBM 到 VMEM 的传输，并且可以编程做标量元数据工作。因为标量核心是单线程的，这的一个副作用是 TPU 的每个核心每个周期只能创建一个 DMA 请求。<br>
+为了把这放在上下文中，单个标量核心控制一个 VPU（由 4096 个 ALU 组成）、4 个 MXU、2 个 XLU 和多个 DMA 引擎。这种单位计算控制的高度倾斜是硬件效率的一个来源，但也限制了以任何有趣的方式做数据依赖的向量化的能力。</p>
+<hr>
+<h3>附录 B: 脉动阵列是如何工作的？</h3>
+<p>TPU MXU 的核心是一个 <code class="notranslate">128x128</code> 脉动阵列（TPU v6e 上为 <code class="notranslate">256x256</code>）。当完全饱和时，脉动阵列可以每 8 个时钟周期执行一次 <code class="notranslate">bfloat16[8,128] @ bf16[128x128] -&gt; f32[8,128]</code> [10] 乘法。</p>
+<p>在其核心，脉动阵列是一个 <code class="notranslate">128x128</code> (=16,384) 的 ALU 网格，每个都能执行乘法和加法操作。<br>
+权重 (W, <code class="notranslate">128x128</code> 输入) 从上方传递下来（称为 RHS），而输入 (X, <code class="notranslate">8x128</code> 输入) 从左侧传递进来（称为 LHS）。</p>
+<p>这是一个权重集（蓝色）与激活集（绿色）相乘的简化动画。你会注意到权重 (RHS) 首先被部分加载，对角线地，然后激活被送入，也是对角线地。在下面的每一帧中，我们将所有重叠的绿色和蓝色单元相乘，将结果与从上方传入的任何残差求和，然后将结果依次向下传递一个单元。</p>
+<p>![[systolic-array.gif]]</p>
+<p>这是一个更通用的动画版本，显示输出正从计算中流出：</p>
+<p>![[systolic-array2.gif]]</p>
+<p>这是一张图表，展示了如何在多个 RHS 和 LHS 数组之间进行流水线操作：</p>
+<p>![[Pasted image 20251130104857.png]]</p>
+<p>随着权重 (RHS) 和激活 (LHS) 的加载，会有一个初始的流水线气泡 (bubble)。在那个初始气泡之后，新的输入和权重可以被加载进来而没有额外的气泡。</p>
+<p>这是一个 <code class="notranslate">bf16[2, 3] x bf16[3, 3]</code> 矩阵乘法的糟糕动画，你可以把它想象成一个 2x3 权重矩阵与一个 batch 为 1、大小为 3 的输入激活的 matmul。这与之前的幻灯片相比旋转了，输入流向右侧而不是下方，但你可以大致看到结构。</p>
+<p>[动画：bf16[2, 3] x bf16[3, 3] 矩阵乘法]</p>
+<p>我们可以有效地对此进行流水线处理以倍增大型矩阵，而不会产生太大的流水线气泡。话虽如此，重要的是我们的矩阵形状要大于 MXU 的边维度，通常是 128x128。一些 TPU（自 TPU v3 起）有多个 MXU，TPU v3 为 2 个，TPU v4/5 为 4 个，所以我们需要确保切片维度大于 <code class="notranslate">128 * MXU</code> 数量。这里有一个很好的动画展示了这一点。</p>
+<p>Trillium (TPU v6e) 有一个 <code class="notranslate">256x256</code> 脉动阵列，这意味着它可以每周期执行 4 倍多的 FLOPs。这也意味着你的张量维度需要大两倍才能完全利用 MXU。</p>
+<p><a href="https://fleetwood.dev/posts/domain-specific-architectures#google-tpu" rel="nofollow">这篇博客文章</a> 有另一个关于固定权重矩阵的脉动阵列乘法的精彩动画。</p>
+<blockquote>
+<p>随着人工智能推理需求的爆炸式增长，许多硬件初创公司正在设计特定领域架构（DSA）。<br>
+我们将从 Transformer 工作负载出发，反向推导，找出最优设计方案、前景广阔的硬件，并预测推理技术的未来发展方向。</p>
+</blockquote>
+<hr>
+<p><strong>脚注</strong></p>
+<p>[1] TPU v6e (Trillium) 有一个 256x256 MXU，而所有前几代使用 128x128。<br>
+[2] TPU，特别是它们的脉动阵列，之所以是如此强大的硬件加速器，是因为矩阵乘法是为数不多的使用 $O(n^3)$ 计算对应 $O(n^2)$ 字节的算法之一。这使得普通 ALU 很容易受限于计算而不是内存带宽。<br>
+[3] 我们有时谈论 VMEM 预取，指的是提前在 VMEM 中加载权重，这样我们可以掩盖 matmul 的加载成本。例如，在正常的 Transformer 中，我们有时可以在 attention 期间将大的前馈权重加载到 VMEM 中，如果我们是内存带宽受限的，这可以隐藏权重加载的成本。这要求我们的权重足够小或分片足够多，以适应单个层进入 VMEM 且有剩余空间。<br>
+[4] 在 Cloud TPU VMs 上，每个托盘作为单独 VM 的一部分暴露，因此再次可见 4 个核心。<br>
+[5] 光学开关只是一个具有相同 ICI 带宽的可重构连接。它只是让我们连接立方体同时保留环绕链路。<br>
+[6] 注意 <code class="notranslate">2x2x4</code> 将没有任何环绕，因为它们由光学开关提供，而光学开关仅在完整立方体上可用。然而，TPU v5e 8x16 将在长轴上有环绕，因为它不使用可重构光学网络。<br>
+[7] 上面的页面列出了 100 GB/s 的带宽，这与这里列出的略有不同。TPU ICI 链路具有略微不同的带宽，取决于正在执行的操作。你通常可以放心地使用本文档中的数字。<br>
+[8] TPU v6e 有 12.5e9 bytes/s，v5e 有 3.125e9 bytes/s。<br>
+[9] 通过双向 (bidi) 带宽，我们指的是可以在单个链路上双向发送的总字节数，或者同样地，从单个 TPU 沿特定轴发出的总字节数，假设我们可以有效地使用两个链路。当我们有一个功能正常的环时，即我们在特定轴上有一个环绕连接时，这是真的。这发生在推理芯片上有完整的 16 轴时，或在训练芯片 (v*p) 上有 4 的倍数的轴时。我们更喜欢使用双向带宽，因为它经常出现在涉及双向通信的计算中。<br>
+[10] 如果你不熟悉这个符号，它的意思是：将一个带有 bfloat16 元素的 <code class="notranslate">8x128</code> 矩阵与一个带有 bfloat16 元素的 <code class="notranslate">128x128</code> 矩阵相乘，并将结果存储在一个带有 float32 元素的 <code class="notranslate">8x128</code> 矩阵中。</p>
+<p>![[Pasted image 20251130095355.png]]</p>
+
+<section data-footnotes="" class="footnotes"><h2 id="footnote-label" class="sr-only">Footnotes</h2>
+<ol>
+<li id="user-content-fn-1-8884235886e0d9a7373b782f9c8d9b72">
+<a href="#user-content-fnref-1-8884235886e0d9a7373b782f9c8d9b72" data-footnote-backref="" aria-label="Back to reference 1" class="data-footnote-backref">↩</a>
+</li>
+</ol>
+</section></div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://chenzongyao200127.github.io">Solar1s' Personal Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行 "+diffDay+" 天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.disabled=true;
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","chenzongyao200127/chenzongyao200127.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+
+
+</script>
+<script>MathJax = {tex: {inlineMath: [["$", "$"]]}};</script><script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+</html>
