@@ -426,7 +426,7 @@ map(String name, String contents):
     }
   }
 };
-<span class="pl-en">REGISTER_MAPPER</span>(WordCounter);
+<span class="pl-c1">REGISTER_MAPPER</span>(WordCounter);
 
 <span class="pl-c"><span class="pl-c">//</span> User's reduce function</span>
 <span class="pl-k">class</span> <span class="pl-en">Adder</span> : <span class="pl-k">public</span> <span class="pl-en">Reducer</span> {
@@ -443,7 +443,7 @@ map(String name, String contents):
     <span class="pl-c1">Emit</span>(<span class="pl-c1">IntToString</span>(value));
   }
 };
-<span class="pl-en">REGISTER_REDUCER</span>(Adder);
+<span class="pl-c1">REGISTER_REDUCER</span>(Adder);
 
 <span class="pl-k">int</span> <span class="pl-en">main</span>(<span class="pl-k">int</span> argc, <span class="pl-k">char</span>** argv) {
   <span class="pl-c1">ParseCommandLineFlags</span>(argc, argv);
