@@ -4,6 +4,7 @@
 
 **作者：** Lourival Vieira Neto（The NetBSD Foundation）、Roberto Ierusalimschy（PUC-Rio 信息学系）、Ana Lúcia de Moura（PUC-Rio 信息学系）、Marc Balmer（The NetBSD Foundation）
 
+![[Pasted image 20260630192841.png]]
 ## 摘要
 
 Extensible operating system（可扩展操作系统）是一种基于以下理念的设计范式：操作系统可以通过允许用户扩展来适应用户需求。在另一种场景——应用程序开发——中，存在一种范式主张复杂系统应当允许用户编写脚本，以便将应用程序定制为满足其需求的形态。本文提出了 scriptable operating system（可脚本化操作系统）的概念，将脚本化开发范式应用于可扩展操作系统的理念之中。
