@@ -308,8 +308,6 @@ SSH 协议过滤脚本共有 22 行 Lua 代码。仅使用 NPF 规则无法实�
 
 NetBSD 内核中的 Lua 部分是作为 Google Summer of Code 项目开发的，由 The NetBSD Foundation 赞助。我们也感谢 NetBSD 开发者给予的所有支持。在 Lunatik 的开发过程中，Lourival Vieira Neto 获得了 CAPES（巴西高等教育改进机构）的资助，Roberto Ierusalimschy 获得了 CNPq（巴西研究委员会）的资助。
 
----
-
 ## 参考文献
 
 [1] ISO C standard 1999. Technical report, 1999. URL http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf. ISO/IEC 9899:1999 draft.
