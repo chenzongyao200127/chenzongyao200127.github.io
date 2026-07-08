@@ -142,7 +142,7 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 </li>
 </ol>
 <p>请注意，我们的准虚拟化 x86 抽象与最近的 Denali 项目 [44] 所提出的有很大不同。Denali 被设计用于支持数千个运行网络服务的虚拟机，其中绝大多数是小规模和不常用的。相比之下，Xen 的目标是扩展到大约 100 个运行行业标准应用和服务的虚拟机。鉴于这些非常不同的目标，对比 Denali 的设计选择与我们的原则是有启发性的。</p>
-<p>首先，Denali 不以现有 ABI 为目标，因此可以从其虚拟机接口中省略某些架构特性。例如，Denali 不完全支持 x86 分段机制，尽管该机制在 NetBSD、Linux 和 Windows XP 的 ABI 中被导出（且被广泛使用 <sup><a href="#user-content-fn-1-862a49de93da89d93628bbe532a39af5" id="user-content-fnref-1-862a49de93da89d93628bbe532a39af5" data-footnote-ref="" aria-describedby="footnote-label">1</a></sup>）。</p>
+<p>首先，Denali 不以现有 ABI 为目标，因此可以从其虚拟机接口中省略某些架构特性。例如，Denali 不完全支持 x86 分段机制，尽管该机制在 NetBSD、Linux 和 Windows XP 的 ABI 中被导出（且被广泛使用 <sup><a href="#user-content-fn-1-4d995cb526e2b341a3e11e17e11a32ac" id="user-content-fnref-1-4d995cb526e2b341a3e11e17e11a32ac" data-footnote-ref="" aria-describedby="footnote-label">1</a></sup>）。</p>
 <p>其次，Denali 的实现未解决在单个客户操作系统内支持应用多路复用和多地址空间的问题。相反，应用程序被显式地链接到 Ilwaco 客户操作系统的一个实例上，其方式颇类似于 Exokernel [23] 中的 libOS。因此，每个虚拟机实质上托管一个单用户、单应用、无保护的 " 操作系统 "。相比之下，在 Xen 中，单个虚拟机托管一个真正的操作系统，该操作系统本身可以安全地多路复用成千上万个未修改的用户级进程。尽管已开发了一个原型虚拟 MMU 可能会帮助 Denali 在这方面有所改进 [44]，但我们尚未看到任何已发表的技术细节或评估。</p>
 <p>第三，在 Denali 架构中，VMM 执行所有到磁盘的页面交换（paging）。这可能与虚拟化层缺乏内存管理支持有关。在 VMM 中进行页面交换有悖于我们的性能隔离目标：恶意虚拟机可以引发抖动（thrashing）行为，不公平地剥夺其他虚拟机的 CPU 时间和磁盘带宽。在 Xen 中，我们期望每个客户操作系统使用其自身保证的内存预留和磁盘分配来执行自己的页面交换（这一思路之前在自分页 [20] 中已被采用）。</p>
 <p>最后，Denali 虚拟化了所有机器资源的 " 命名空间 "（namespaces），认为如果一个虚拟机不能命名另一个虚拟机的资源分配，就无法访问它们（例如，虚拟机不了解硬件地址，只知道 Denali 为它们创建的虚拟地址）。相比之下，我们认为 hypervisor 内部安全的访问控制足以确保保护；此外，如前所述，让客户操作系统直接看到物理资源在正确性和性能方面都有充分的理由。</p>
@@ -211,7 +211,7 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 <p>许多处理器架构仅提供两个特权级别。在这些情况下，客户操作系统将与应用程序共享较低的特权级别。客户操作系统将通过在与其应用程序不同的地址空间中运行来保护自身，并通过 hypervisor 间接地在应用程序之间传递控制，以设置虚拟特权级别并切换当前地址空间。同样，如果处理器的 TLB 支持地址空间标签，则可以避免昂贵的 TLB 刷新。</p>
 <p>在 x86 上可以高效地虚拟化特权级别，因为它在硬件中支持四个不同的特权级别。x86 的特权级别通常被描述为环（rings），编号从零（最高特权）到三（最低特权）。操作系统代码通常在 ring 0 中执行，因为没有其他环可以执行特权指令，而 ring 3 一般用于应用程序代码。据我们所知，自 OS/2 以来，没有任何知名的 x86 操作系统使用过 ring 1 和 ring 2。任何遵循这种常见安排的操作系统都可以通过修改使其在 ring 1 中执行来移植到 Xen。这阻止了客户操作系统直接执行特权指令，同时使其与运行在 ring 3 中的应用程序保持安全隔离。</p>
 <p>特权指令通过要求在 Xen 内部验证和执行来实现准虚拟化——这适用于安装新页表或在空闲时让出处理器等操作（而不是尝试执行 hlt 指令）。任何客户操作系统直接执行特权指令的尝试都会被处理器拒绝，要么静默失败，要么产生一个错误（fault），因为只有 Xen 在足够高的特权级别上执行。</p>
-<p>异常（包括内存错误和软件陷阱）在 x86 上的虚拟化非常直接。描述每种异常类型处理程序的表被注册到 Xen 进行验证。该表中指定的处理程序通常与真实 x86 硬件的处理程序相同；这是可能的，因为异常栈帧在我们的准虚拟化架构中未被修改。唯一的修改是针对页面错误处理程序的，它通常需要从一个特权处理器寄存器（CR2）中读取导致错误的地址；由于这在 ring 1 中是不可能的，我们将其写入一个扩展的栈帧中 <sup><a href="#user-content-fn-2-862a49de93da89d93628bbe532a39af5" id="user-content-fnref-2-862a49de93da89d93628bbe532a39af5" data-footnote-ref="" aria-describedby="footnote-label">2</a></sup>。当异常发生在 ring 0 之外执行时，Xen 的处理程序在客户操作系统的栈上创建异常栈帧的副本，并将控制返回到相应的已注册处理程序。</p>
+<p>异常（包括内存错误和软件陷阱）在 x86 上的虚拟化非常直接。描述每种异常类型处理程序的表被注册到 Xen 进行验证。该表中指定的处理程序通常与真实 x86 硬件的处理程序相同；这是可能的，因为异常栈帧在我们的准虚拟化架构中未被修改。唯一的修改是针对页面错误处理程序的，它通常需要从一个特权处理器寄存器（CR2）中读取导致错误的地址；由于这在 ring 1 中是不可能的，我们将其写入一个扩展的栈帧中 <sup><a href="#user-content-fn-2-4d995cb526e2b341a3e11e17e11a32ac" id="user-content-fnref-2-4d995cb526e2b341a3e11e17e11a32ac" data-footnote-ref="" aria-describedby="footnote-label">2</a></sup>。当异常发生在 ring 0 之外执行时，Xen 的处理程序在客户操作系统的栈上创建异常栈帧的副本，并将控制返回到相应的已注册处理程序。</p>
 <p>通常只有两类异常频繁到足以影响系统性能：系统调用（通常通过软件异常实现）和页面错误。我们通过允许每个客户操作系统注册一个 " 快速 " 异常处理程序来改善系统调用性能，该处理程序可由处理器直接访问而无需经过 ring 0 的间接传递；此处理程序在安装到硬件异常表之前由 Xen 验证。不幸的是，无法对页面错误处理程序应用相同的技术，因为只有在 ring 0 中执行的代码才能从寄存器 CR2 中读取导致错误的地址；因此页面错误必须始终通过 Xen 传递，以便可以将该寄存器值保存以供 ring 1 访问。</p>
 <p>安全性通过在异常处理程序注册到 Xen 时进行验证来保证。唯一需要的检查是处理程序的代码段不指定在 ring 0 中执行。由于没有客户操作系统能创建这样的段，只需将指定的段选择器与少数由 Xen 保留的静态值进行比较即可。除此之外，其他处理程序问题在异常传播过程中被修复——例如，如果处理程序的代码段不存在，或者处理程序未被换入内存，则当 Xen 执行返回到处理程序的 iret 指令时将产生相应的错误。Xen 通过检查导致错误的程序计数器值来检测这些 " 双重错误 "（double faults）：如果该地址位于异常虚拟化代码内部，则违规的客户操作系统将被终止。</p>
 <p>请注意，这种 " 惰性 "（lazy）检查即使对于直接系统调用处理程序也是安全的：当 CPU 尝试直接跳转到客户操作系统处理程序时将发生访问错误。在这种情况下，导致错误的地址将在 Xen 之外（因为 Xen 永远不会执行客户操作系统的系统调用），因此该错误将以正常方式被虚拟化。如果传播该错误导致进一步的 " 双重错误 "，则如上所述终止该客户操作系统。</p>
@@ -628,7 +628,7 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 <h2>6. 讨论与结论</h2>
 <p>我们已经介绍了 Xen hypervisor，它在运行客户操作系统的域之间分配计算机的资源。我们的准虚拟化设计特别强调性能和资源管理。我们还描述和评估了 XenoLinux，一个运行在 Xen 之上的功能完整的 Linux 2.4 内核移植版。</p>
 <h3>6.1 未来工作</h3>
-<p>我们相信 Xen 和 XenoLinux 已经足够完善，可以为更广泛的受众所使用，因此打算在不久的将来公开发布我们的软件。一个测试版已经在被选定的参与方评估中；一旦这个阶段完成，将在我们的项目页面 <sup><a href="#user-content-fn-3-862a49de93da89d93628bbe532a39af5" id="user-content-fnref-3-862a49de93da89d93628bbe532a39af5" data-footnote-ref="" aria-describedby="footnote-label">3</a></sup> 上宣布通用的 1.0 版本发布。</p>
+<p>我们相信 Xen 和 XenoLinux 已经足够完善，可以为更广泛的受众所使用，因此打算在不久的将来公开发布我们的软件。一个测试版已经在被选定的参与方评估中；一旦这个阶段完成，将在我们的项目页面 <sup><a href="#user-content-fn-3-4d995cb526e2b341a3e11e17e11a32ac" id="user-content-fnref-3-4d995cb526e2b341a3e11e17e11a32ac" data-footnote-ref="" aria-describedby="footnote-label">3</a></sup> 上宣布通用的 1.0 版本发布。</p>
 <p>在初始发布之后，我们计划对 Xen 进行若干扩展和改进。为了提高虚拟块设备的效率，我们打算实现一个按块内容索引的共享通用缓冲区缓存。这将在不牺牲隔离的情况下为我们的设计添加受控的数据共享。为虚拟块设备添加写时复制（copy-on-write）语义将允许它们在域之间安全共享，同时仍允许文件系统的分叉发展。</p>
 <p>为了提供更好的物理内存性能，我们计划实现一个末次机会页面缓存（last-chance page cache, LPC）——实际上是一个系统范围的空闲页面列表，仅当机器内存被不充分分配时其长度才非零。当客户操作系统虚拟内存系统选择驱逐一个干净页面时使用 LPC；与其完全丢弃该页面，不如将其添加到空闲列表的尾部。如果在该页面被 Xen 重新分配之前发生了对该页面的错误，则可以在不进行磁盘访问的情况下满足该错误。</p>
 <p>Xen 的一个重要角色是作为 XenoServer 项目的基础，该项目着眼于单个机器之外，正在构建支持互联网规模计算基础设施所需的控制系统。我们设计的关键思想是资源使用被精确计量，并由该任务的赞助者支付费用——如果以真实货币支付，我们可以使用拥塞定价（congestion pricing）策略 [28] 来处理超额需求，并使用超额收入来购买额外的机器。这需要具有更大弹性的精确且及时的 I/O 调度来应对恶意工作负载。我们还计划通过为虚拟块设备创建租约（leases）来将计费纳入我们的块存储架构。</p>
@@ -687,14 +687,14 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 
 <section data-footnotes="" class="footnotes"><h2 id="footnote-label" class="sr-only">Footnotes</h2>
 <ol>
-<li id="user-content-fn-1-862a49de93da89d93628bbe532a39af5">
-<p>例如，线程库经常使用段来寻址线程本地数据。 <a href="#user-content-fnref-1-862a49de93da89d93628bbe532a39af5" data-footnote-backref="" aria-label="Back to reference 1" class="data-footnote-backref">↩</a></p>
+<li id="user-content-fn-1-4d995cb526e2b341a3e11e17e11a32ac">
+<p>例如，线程库经常使用段来寻址线程本地数据。 <a href="#user-content-fnref-1-4d995cb526e2b341a3e11e17e11a32ac" data-footnote-backref="" aria-label="Back to reference 1" class="data-footnote-backref">↩</a></p>
 </li>
-<li id="user-content-fn-2-862a49de93da89d93628bbe532a39af5">
-<p>事后来看，将值写入一个预先约定的共享内存位置而非修改栈帧会简化 XP 的移植工作。 <a href="#user-content-fnref-2-862a49de93da89d93628bbe532a39af5" data-footnote-backref="" aria-label="Back to reference 2" class="data-footnote-backref">↩</a></p>
+<li id="user-content-fn-2-4d995cb526e2b341a3e11e17e11a32ac">
+<p>事后来看，将值写入一个预先约定的共享内存位置而非修改栈帧会简化 XP 的移植工作。 <a href="#user-content-fnref-2-4d995cb526e2b341a3e11e17e11a32ac" data-footnote-backref="" aria-label="Back to reference 2" class="data-footnote-backref">↩</a></p>
 </li>
-<li id="user-content-fn-3-862a49de93da89d93628bbe532a39af5">
-<p><a href="http://www.cl.cam.ac.uk/netos/xen">http://www.cl.cam.ac.uk/netos/xen</a> <a href="#user-content-fnref-3-862a49de93da89d93628bbe532a39af5" data-footnote-backref="" aria-label="Back to reference 3" class="data-footnote-backref">↩</a></p>
+<li id="user-content-fn-3-4d995cb526e2b341a3e11e17e11a32ac">
+<p><a href="http://www.cl.cam.ac.uk/netos/xen">http://www.cl.cam.ac.uk/netos/xen</a> <a href="#user-content-fnref-3-4d995cb526e2b341a3e11e17e11a32ac" data-footnote-backref="" aria-label="Back to reference 3" class="data-footnote-backref">↩</a></p>
 </li>
 </ol>
 </section></div>
