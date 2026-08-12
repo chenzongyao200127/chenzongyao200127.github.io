@@ -132,7 +132,7 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 <p>你可以把 TensorCore 看作是一台非常擅长矩阵乘法的机器，但它还有其他几个值得注意的功能。TensorCore 有三个关键单元：</p>
 <ol>
 <li>
-<p>MXU (矩阵乘法单元)：这是 TensorCore 的核心。在大多数 TPU 世代中，它利用<strong>脉动阵列</strong>（详见附录 B），每 8 个时钟周期执行一次 <code class="notranslate">bfloat16[8,128] @ bf16[128,128] -&gt; f32[8,128]</code> 的矩阵乘法 <sup><a href="#user-content-fn-1-e4e1a72b0e5bbd742fc2ee69cb6fbec8" id="user-content-fnref-1-e4e1a72b0e5bbd742fc2ee69cb6fbec8" data-footnote-ref="" aria-describedby="footnote-label">1</a></sup>。</p>
+<p>MXU (矩阵乘法单元)：这是 TensorCore 的核心。在大多数 TPU 世代中，它利用<strong>脉动阵列</strong>（详见附录 B），每 8 个时钟周期执行一次 <code class="notranslate">bfloat16[8,128] @ bf16[128,128] -&gt; f32[8,128]</code> 的矩阵乘法 <sup><a href="#user-content-fn-1-df99e1011fcf3442defbaa8516855d94" id="user-content-fnref-1-df99e1011fcf3442defbaa8516855d94" data-footnote-ref="" aria-describedby="footnote-label">1</a></sup>。</p>
 <ul>
 <li>在 TPU v5e 上（1.5GHz），这大约相当于每个 MXU 每秒 <code class="notranslate">5e13</code> 次 bf16 浮点运算 (FLOPs)。</li>
 <li>大多数 TensorCore 有 2 或 4 个 MXU，因此例如 TPU v5e 的总 bf16 FLOPs/s 为 <code class="notranslate">2e14</code>。</li>
@@ -579,8 +579,8 @@ Shift 1: 再递给最后 1 个。相加。 （剩下 1 个结果） 耗时：仅
 
 <section data-footnotes="" class="footnotes"><h2 id="footnote-label" class="sr-only">Footnotes</h2>
 <ol>
-<li id="user-content-fn-1-e4e1a72b0e5bbd742fc2ee69cb6fbec8">
-<a href="#user-content-fnref-1-e4e1a72b0e5bbd742fc2ee69cb6fbec8" data-footnote-backref="" aria-label="Back to reference 1" class="data-footnote-backref">↩</a>
+<li id="user-content-fn-1-df99e1011fcf3442defbaa8516855d94">
+<a href="#user-content-fnref-1-df99e1011fcf3442defbaa8516855d94" data-footnote-backref="" aria-label="Back to reference 1" class="data-footnote-backref">↩</a>
 </li>
 </ol>
 </section></div>
