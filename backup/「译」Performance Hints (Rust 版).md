@@ -179,34 +179,37 @@ L2 缓存引用 (L2 cache reference)                          3 ns
 
 - **添加批量 `MemoryManager::LookupMany` 接口** — 除了增加批量接口外，还简化了新批量变体的签名：结果表明调用方只需要知道是否所有 key 都被找到，因此可以返回 `bool` 而非 `Status` 对象。
 
-  > Rust 备注：批量接口用切片传入 key、切片写回结果，返回 `bool` 表示是否全部命中：
-  > ```rust
-  > fn lookup_many(&self, keys: &[LookupKey], tensors: &mut [Tensor]) -> bool;
-  > ```
+  Rust 备注：批量接口用切片传入 key、切片写回结果，返回 `bool` 表示是否全部命中：
+
+  ```rust
+  fn lookup_many(&self, keys: &[LookupKey], tensors: &mut [Tensor]) -> bool;
+  ```
 
 - **添加批量 `ObjectStore::DeleteRefs` API 以摊销加锁开销** — 原先每个 ref 单独调用 `DeleteRef` 都要加锁；批量版本一次加锁后循环删除所有 ref，任一错误则返回非 OK。调用方由逐个删除句柄改为整批传入 `DeleteRefs(handles)`。
 
-  > Rust 备注：一次锁定、批量删除：
-  > ```rust
-  > fn delete_refs(&self, refs: &[Ref]) -> Result<(), Error> {
-  >     let _guard = self.mu.lock().unwrap();
-  >     let mut result = Ok(());
-  >     for r in refs {
-  >         if let Err(e) = self.delete_ref_locked(*r) { result = Err(e); }
-  >     }
-  >     result
-  > }
-  > ```
+  Rust 备注：一次锁定、批量删除：
+
+  ```rust
+  fn delete_refs(&self, refs: &[Ref]) -> Result<(), Error> {
+      let _guard = self.mu.lock().unwrap();
+      let mut result = Ok(());
+      for r in refs {
+          if let Err(e) = self.delete_ref_locked(*r) { result = Err(e); }
+      }
+      result
+  }
+  ```
 
 - **使用 [Floyd 建堆法](https://en.wikipedia.org/wiki/Heapsort#Variations) 进行高效初始化** — 批量初始化堆可在 O(N) 时间内完成，而逐个添加元素并在每次添加后维护堆性质则需要 O(N lg(N)) 时间。
 
-  > Rust 备注：`BinaryHeap::from(vec)` 走的是 Floyd 建堆，O(N)；而循环 `push` 逐个插入是 O(N log N)：
-  > ```rust
-  > let heap = BinaryHeap::from(vec);          // O(N)，Floyd 建堆
-  > // 对比：
-  > let mut heap = BinaryHeap::new();
-  > for x in vec { heap.push(x); }             // O(N log N)
-  > ```
+  Rust 备注：`BinaryHeap::from(vec)` 走的是 Floyd 建堆，O(N)；而循环 `push` 逐个插入是 O(N log N)：
+
+  ```rust
+  let heap = BinaryHeap::from(vec);          // O(N)，Floyd 建堆
+  // 对比：
+  let mut heap = BinaryHeap::new();
+  for x in vec { heap.push(x); }             // O(N log N)
+  ```
 
 有时很难让调用方直接改用新的批量 API。这种情况下，可以在内部使用批量 API 并缓存结果，供未来的非批量调用使用：
 
@@ -216,13 +219,15 @@ L2 缓存引用 (L2 cache reference)                          3 ns
 
 对函数参数优先使用视图类型（如 `std::string_view`、`std::Span<T>`、`absl::FunctionRef<R(Args…)>`），除非要转移数据所有权。这些类型减少拷贝，并允许调用方自选容器类型（例如一个调用方用 `std::vector`，另一个用 `absl::InlinedVector`）。
 
-> Rust 备注：Rust 中对应的视图类型：
-> - `std::string_view` → `&str`
-> - `Span<T>` → `&[T]`
-> - `FunctionRef<R(Args…)>` → `&dyn Fn(Args) -> R` 或泛型 `impl Fn(Args) -> R`
-> ```rust
-> fn process(name: &str, data: &[u8], cb: impl Fn(u32) -> u32) { /* ... */ }
-> ```
+**Rust 备注**：Rust 中对应的视图类型：
+
+- `std::string_view` → `&str`
+- `Span<T>` → `&[T]`
+- `FunctionRef<R(Args…)>` → `&dyn Fn(Args) -> R` 或泛型 `impl Fn(Args) -> R`
+
+```rust
+fn process(name: &str, data: &[u8], cb: impl Fn(u32) -> u32) { /* ... */ }
+```
 
 ### 预分配 / 预计算参数 (Pre-allocated/pre-computed arguments)
 
