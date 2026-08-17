@@ -1,5 +1,6 @@
 > 原文链接：https://abseil.io/fast/hints.html#performance-hints
 > 姊妹篇：[[「译」Performance Hints]]（C++ 原味版）。
+>
 > 本篇是**基于逐字原文（abseil.github.io 源码 fast/hints.md，2025/12/16 版）的完整忠实翻译**：保留原文全部章节、子节与每一条 CL 示例（含其关键基准数字），并把其中的 C++ 类型与代码改写成 Rust 等价物。所有 Rust 映射均为译者添加、以引注或 "Rust 备注 " 标出；技术判断与数字一律以原文为准。
 
 ## 关于这一版
