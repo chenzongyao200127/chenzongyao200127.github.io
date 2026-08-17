@@ -425,12 +425,10 @@ L2 缓存引用 (L2 cache reference)                          3 ns
 <ul>
 <li>
 <p><strong>添加 <code class="notranslate">RPC_Stats::RecordRPC</code> 变体，允许客户端传入已有的 <code class="notranslate">WallTime</code> 值</strong> — 原签名为 <code class="notranslate">RecordRPC(name, m)</code>，新签名增加 <code class="notranslate">WallTime now</code> 参数。调用方 <code class="notranslate">clientchannel.cc</code> 本已通过 <code class="notranslate">WallTime_Now()</code> 得到 <code class="notranslate">now</code>，直接把它传进去，避免例程内部重复取时间。</p>
-<blockquote>
 <p>Rust 备注：把已有的时间戳作为参数传入，避免函数内部重新取时：</p>
 <div class="highlight highlight-source-rust"><pre class="notranslate"><span class="pl-k">fn</span> <span class="pl-en">record_rpc</span><span class="pl-kos">(</span><span class="pl-s1">name</span><span class="pl-kos">:</span> <span class="pl-c1">&amp;</span><span class="pl-smi">Name</span><span class="pl-kos">,</span> <span class="pl-s1">m</span><span class="pl-kos">:</span> <span class="pl-c1">&amp;</span><span class="pl-smi">Measurement</span><span class="pl-kos">,</span> <span class="pl-s1">now</span><span class="pl-kos">:</span> <span class="pl-smi">Instant</span><span class="pl-kos">)</span> <span class="pl-kos">{</span> <span class="pl-c">/* ... */</span> <span class="pl-kos">}</span>
 <span class="pl-k">let</span> now = <span class="pl-smi">Instant</span><span class="pl-kos">::</span><span class="pl-en">now</span><span class="pl-kos">(</span><span class="pl-kos">)</span><span class="pl-kos">;</span>
 <span class="pl-en">record_rpc</span><span class="pl-kos">(</span><span class="pl-c1">&amp;</span>stats_name<span class="pl-kos">,</span> <span class="pl-c1">&amp;</span>m<span class="pl-kos">,</span> now<span class="pl-kos">)</span><span class="pl-kos">;</span></pre></div>
-</blockquote>
 </li>
 </ul>
 <h3>线程兼容 vs. 线程安全类型 (Thread-compatible vs. Thread-safe types)</h3>
@@ -438,7 +436,6 @@ L2 缓存引用 (L2 cache reference)                          3 ns
 <ul>
 <li>
 <p><strong>将某个类改为线程兼容，因为调用方已经做了同步</strong> — <code class="notranslate">HitlessTransferPhase::get()</code> 和 <code class="notranslate">AllowAllocate()</code> 原本各自 <code class="notranslate">MonitoredMutexLock</code> 加锁再读 <code class="notranslate">phase_</code>；由于调用方已同步，直接去掉锁，改为裸读 <code class="notranslate">return phase_;</code>。</p>
-<blockquote>
 <p>Rust 备注：线程兼容 = 普通结构体，同步交给外部 <code class="notranslate">Mutex</code>；内部同步 = 用 <code class="notranslate">dashmap</code> 等内部加锁容器。</p>
 <div class="highlight highlight-source-rust"><pre class="notranslate"><span class="pl-c">// 线程兼容：由外部 Mutex 保护</span>
 <span class="pl-k">struct</span> <span class="pl-smi">HitlessTransferPhase</span> <span class="pl-kos">{</span> <span class="pl-c1">phase</span><span class="pl-kos">:</span> <span class="pl-smi">TransferPhase</span> <span class="pl-kos">}</span>
@@ -447,7 +444,6 @@ L2 缓存引用 (L2 cache reference)                          3 ns
 <span class="pl-c">// 内部同步：类型自己负责加锁</span>
 <span class="pl-k">use</span> dashmap<span class="pl-kos">::</span><span class="pl-v">DashMap</span><span class="pl-kos">;</span>
 <span class="pl-k">let</span> map<span class="pl-kos">:</span> <span class="pl-smi">DashMap</span><span class="pl-kos">&lt;</span><span class="pl-smi">K</span><span class="pl-kos">,</span> <span class="pl-smi">V</span><span class="pl-kos">&gt;</span> = <span class="pl-smi">DashMap</span><span class="pl-kos">::</span><span class="pl-en">new</span><span class="pl-kos">(</span><span class="pl-kos">)</span><span class="pl-kos">;</span></pre></div>
-</blockquote>
 </li>
 </ul>
 <p>然而，如果一个类型的典型用法都需要同步，则更倾向于把同步移到类型内部。这样便可按需调整同步机制以提升性能（例如分片以降低争用），而不影响调用方。</p>
@@ -603,7 +599,6 @@ L2 缓存引用 (L2 cache reference)                          3 ns
 <p><strong>对字符串首字节做数组查找，从而常常避免对整串做指纹计算。</strong>（soft-tokens-helper.h / .cc）由于软 token 大多与标点相关，新增数组 <code class="notranslate">bool filter_[256]</code>：<code class="notranslate">filter_[i]</code> 为真当且仅当有某个软 token 以字节值 <code class="notranslate">i</code> 开头。内联的 <code class="notranslate">IsSoftToken</code> 先看首字节，若 <code class="notranslate">filter_[first_char]</code> 为假就立即返回 false；否则才调用 <code class="notranslate">IsSoftTokenFallback</code>，后者仍用 <code class="notranslate">Fingerprint(token)</code> 在 <code class="notranslate">soft_tokens_</code> 中查找。</p>
 </li>
 </ul>
-<blockquote>
 <p><strong>Rust 备注</strong>：快速路径 + 慢路径的惯用写法是把慢路径拆成单独函数并标注 <code class="notranslate">#[cold]</code> 与 <code class="notranslate">#[inline(never)]</code>，让编译器把它移出内联体：</p>
 <div class="highlight highlight-source-rust"><pre class="notranslate"><span class="pl-c1">#<span class="pl-kos">[</span>inline<span class="pl-kos">]</span></span>
 <span class="pl-k">fn</span> <span class="pl-en">varint_parse</span><span class="pl-kos">(</span><span class="pl-s1">p</span><span class="pl-kos">:</span> <span class="pl-c1">&amp;</span><span class="pl-kos">[</span><span class="pl-smi">u8</span><span class="pl-kos">]</span><span class="pl-kos">,</span> <span class="pl-s1">out</span><span class="pl-kos">:</span> <span class="pl-c1">&amp;</span><span class="pl-k">mut</span> <span class="pl-smi">u32</span><span class="pl-kos">)</span> -&gt; <span class="pl-smi">usize</span> <span class="pl-kos">{</span>
@@ -615,7 +610,6 @@ L2 缓存引用 (L2 cache reference)                          3 ns
 <span class="pl-c1">#<span class="pl-kos">[</span>inline<span class="pl-kos">(</span>never<span class="pl-kos">)</span><span class="pl-kos">]</span></span>
 <span class="pl-k">fn</span> <span class="pl-en">varint_parse_slow</span><span class="pl-kos">(</span><span class="pl-s1">p</span><span class="pl-kos">:</span> <span class="pl-c1">&amp;</span><span class="pl-kos">[</span><span class="pl-smi">u8</span><span class="pl-kos">]</span><span class="pl-kos">,</span> <span class="pl-s1">res</span><span class="pl-kos">:</span> <span class="pl-smi">u32</span><span class="pl-kos">,</span> <span class="pl-s1">out</span><span class="pl-kos">:</span> <span class="pl-c1">&amp;</span><span class="pl-k">mut</span> <span class="pl-smi">u32</span><span class="pl-kos">)</span> -&gt; <span class="pl-smi">usize</span> <span class="pl-kos">{</span> <span class="pl-c">/* ... */</span> <span class="pl-kos">}</span></pre></div>
 <p>首字节过滤表可用 <code class="notranslate">const FILTER: [bool; 256] = { /* … */ };</code> 在编译期构造。全 ASCII 快扫可用 <code class="notranslate">slice::iter().position(|&amp;b| b &amp; 0x80 != 0)</code> 或按块处理。</p>
-</blockquote>
 <h3>一次性预计算昂贵信息</h3>
 <ul>
 <li>

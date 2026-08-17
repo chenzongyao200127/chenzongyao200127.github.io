@@ -235,12 +235,13 @@ fn process(name: &str, data: &[u8], cb: impl Fn(u32) -> u32) { /* ... */ }
 
 - **添加 `RPC_Stats::RecordRPC` 变体，允许客户端传入已有的 `WallTime` 值** — 原签名为 `RecordRPC(name, m)`，新签名增加 `WallTime now` 参数。调用方 `clientchannel.cc` 本已通过 `WallTime_Now()` 得到 `now`，直接把它传进去，避免例程内部重复取时间。
 
-  > Rust 备注：把已有的时间戳作为参数传入，避免函数内部重新取时：
-  > ```rust
-  > fn record_rpc(name: &Name, m: &Measurement, now: Instant) { /* ... */ }
-  > let now = Instant::now();
-  > record_rpc(&stats_name, &m, now);
-  > ```
+  Rust 备注：把已有的时间戳作为参数传入，避免函数内部重新取时：
+
+  ```rust
+  fn record_rpc(name: &Name, m: &Measurement, now: Instant) { /* ... */ }
+  let now = Instant::now();
+  record_rpc(&stats_name, &m, now);
+  ```
 
 ### 线程兼容 vs. 线程安全类型 (Thread-compatible vs. Thread-safe types)
 
@@ -248,16 +249,17 @@ fn process(name: &str, data: &[u8], cb: impl Fn(u32) -> u32) { /* ... */ }
 
 - **将某个类改为线程兼容，因为调用方已经做了同步** — `HitlessTransferPhase::get()` 和 `AllowAllocate()` 原本各自 `MonitoredMutexLock` 加锁再读 `phase_`；由于调用方已同步，直接去掉锁，改为裸读 `return phase_;`。
 
-  > Rust 备注：线程兼容 = 普通结构体，同步交给外部 `Mutex`；内部同步 = 用 `dashmap` 等内部加锁容器。
-  > ```rust
-  > // 线程兼容：由外部 Mutex 保护
-  > struct HitlessTransferPhase { phase: TransferPhase }
-  > let shared = Mutex::new(HitlessTransferPhase { phase });
-  >
-  > // 内部同步：类型自己负责加锁
-  > use dashmap::DashMap;
-  > let map: DashMap<K, V> = DashMap::new();
-  > ```
+  Rust 备注：线程兼容 = 普通结构体，同步交给外部 `Mutex`；内部同步 = 用 `dashmap` 等内部加锁容器。
+
+  ```rust
+  // 线程兼容：由外部 Mutex 保护
+  struct HitlessTransferPhase { phase: TransferPhase }
+  let shared = Mutex::new(HitlessTransferPhase { phase });
+
+  // 内部同步：类型自己负责加锁
+  use dashmap::DashMap;
+  let map: DashMap<K, V> = DashMap::new();
+  ```
 
 然而，如果一个类型的典型用法都需要同步，则更倾向于把同步移到类型内部。这样便可按需调整同步机制以提升性能（例如分片以降低争用），而不影响调用方。
 
@@ -432,19 +434,21 @@ fn process(name: &str, data: &[u8], cb: impl Fn(u32) -> u32) { /* ... */ }
 
 - **对字符串首字节做数组查找，从而常常避免对整串做指纹计算。**（soft-tokens-helper.h / .cc）由于软 token 大多与标点相关，新增数组 `bool filter_[256]`：`filter_[i]` 为真当且仅当有某个软 token 以字节值 `i` 开头。内联的 `IsSoftToken` 先看首字节，若 `filter_[first_char]` 为假就立即返回 false；否则才调用 `IsSoftTokenFallback`，后者仍用 `Fingerprint(token)` 在 `soft_tokens_` 中查找。
 
-> **Rust 备注**：快速路径 + 慢路径的惯用写法是把慢路径拆成单独函数并标注 `#[cold]` 与 `#[inline(never)]`，让编译器把它移出内联体：
-> ```rust
-> #[inline]
-> fn varint_parse(p: &[u8], out: &mut u32) -> usize {
->     let b0 = p[0];
->     if b0 & 0x80 == 0 { *out = b0 as u32; return 1; }
->     varint_parse_slow(p, b0 as u32, out)
-> }
-> #[cold]
-> #[inline(never)]
-> fn varint_parse_slow(p: &[u8], res: u32, out: &mut u32) -> usize { /* ... */ }
-> ```
-> 首字节过滤表可用 `const FILTER: [bool; 256] = { /* … */ };` 在编译期构造。全 ASCII 快扫可用 `slice::iter().position(|&b| b & 0x80 != 0)` 或按块处理。
+**Rust 备注**：快速路径 + 慢路径的惯用写法是把慢路径拆成单独函数并标注 `#[cold]` 与 `#[inline(never)]`，让编译器把它移出内联体：
+
+```rust
+#[inline]
+fn varint_parse(p: &[u8], out: &mut u32) -> usize {
+    let b0 = p[0];
+    if b0 & 0x80 == 0 { *out = b0 as u32; return 1; }
+    varint_parse_slow(p, b0 as u32, out)
+}
+#[cold]
+#[inline(never)]
+fn varint_parse_slow(p: &[u8], res: u32, out: &mut u32) -> usize { /* ... */ }
+```
+
+首字节过滤表可用 `const FILTER: [bool; 256] = { /* … */ };` 在编译期构造。全 ASCII 快扫可用 `slice::iter().position(|&b| b & 0x80 != 0)` 或按块处理。
 
 ### 一次性预计算昂贵信息
 
