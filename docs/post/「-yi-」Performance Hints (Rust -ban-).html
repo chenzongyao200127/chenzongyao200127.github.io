@@ -929,7 +929,7 @@ L2 缓存引用 (L2 cache reference)                          3 ns
 </ul>
 </li>
 <li>
-<p><strong>通过一系列改动使 XLA 编译器性能提升约 15%(~15% XLA compiler performance improvement)</strong> — 在 SortComputationsByContent 中当 a==b 时直接返回 false，避免对长计算字符串做序列化与指纹计算; 将 CHECK 改为 DCHECK 以少碰一条缓存行; 避免在 CoreSequencer::IsVectorSyncHoldSatisfied() 中昂贵地复制首条指令; 重写 HloComputation::ToString/ToCord 使主要工作以追加到 <code class="notranslate">std::string</code> 而非 Cord; 把 PerformanceCounterSet::Increment 从两次哈希查找减为一次; 精简 Scoreboard::Update。对某个重要模型的 XLA 编译时间总体提速 14%。</p>
+<p><strong>通过一系列改动使 XLA 编译器性能提升约 15%(~15% XLA compiler performance improvement)</strong> — 在 SortComputationsByContent 中当 <code class="notranslate">a==b</code> 时直接返回 false，避免对长计算字符串做序列化与指纹计算; 将 CHECK 改为 DCHECK 以少碰一条缓存行; 避免在 CoreSequencer::IsVectorSyncHoldSatisfied() 中昂贵地复制首条指令; 重写 HloComputation::ToString/ToCord 使主要工作以追加到 <code class="notranslate">std::string</code> 而非 Cord; 把 PerformanceCounterSet::Increment 从两次哈希查找减为一次; 精简 Scoreboard::Update。对某个重要模型的 XLA 编译时间总体提速 14%。</p>
 <ul>
 <li>Rust 备注：DCHECK 对应 <code class="notranslate">debug_assert!</code>；追加到字符串 = 复用 <code class="notranslate">String::push_str</code> 缓冲；单次哈希查找 = 用 <code class="notranslate">entry</code> API 避免二次探测。</li>
 </ul>
@@ -953,7 +953,7 @@ L2 缓存引用 (L2 cache reference)                          3 ns
 </ul>
 </li>
 <li>
-<p><strong>MapReduce 改进 (wordcount 基准约 2X 提速)(MapReduce improvements, ~2X speedup)</strong> — 改造 SafeCombinerMapOutput 的 combiner 数据结构：用 <code class="notranslate">hash_map&lt;SafeCombinerKey, ValuePtr*&gt;</code>(ValuePtr 为带重复计数的值链表) 替代每条唯一键/值都占一个哈希表项的 <code class="notranslate">hash_multimap&lt;SafeCombinerKey, StringPiece&gt;</code>，从而显著降低内存 (每个值仅需 <code class="notranslate">sizeof(ValuePtr)+value_len</code>，减少 reducer 缓冲区的刷新次数)、显著提速 (对已存在的键新增值只需挂入链表而不新增表项)，并能以带重复计数的单一链表项表示重复值序列; 为默认的 KeyFingerprintSharding 增加 nshards==1 的判断以完全跳过键指纹; 将热路径上部分 VLOG(3) 改为 DVLOG(3)。使某个 wordcount 基准从 12.56s 降到 6.55s。</p>
+<p><strong>MapReduce 改进 (wordcount 基准约 2X 提速)(MapReduce improvements, ~2X speedup)</strong> — 改造 SafeCombinerMapOutput 的 combiner 数据结构：用 <code class="notranslate">hash_map&lt;SafeCombinerKey, ValuePtr*&gt;</code>(ValuePtr 为带重复计数的值链表) 替代每条唯一键/值都占一个哈希表项的 <code class="notranslate">hash_multimap&lt;SafeCombinerKey, StringPiece&gt;</code>，从而显著降低内存 (每个值仅需 <code class="notranslate">sizeof(ValuePtr)+value_len</code>，减少 reducer 缓冲区的刷新次数)、显著提速 (对已存在的键新增值只需挂入链表而不新增表项)，并能以带重复计数的单一链表项表示重复值序列; 为默认的 KeyFingerprintSharding 增加 <code class="notranslate">nshards==1</code> 的判断以完全跳过键指纹; 将热路径上部分 VLOG(3) 改为 DVLOG(3)。使某个 wordcount 基准从 12.56s 降到 6.55s。</p>
 <ul>
 <li>Rust 备注：多重映射 → 值链表的重构 = <code class="notranslate">HashMap&lt;K, Vec&lt;V&gt;&gt;</code> 或带计数的自定义结构；重复计数 = run-length 编码；DVLOG 对应仅在 debug 下启用的日志宏。</li>
 </ul>
